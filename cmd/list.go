@@ -147,12 +147,16 @@ func getCurrentProfile() string {
 }
 
 func getProfilesFromConfig(findDefault bool) (awsTypes.Profiles, error) {
+	var profiles awsTypes.Profiles
+
 	awsConfigPath, err := getConfigPath()
 	if err != nil {
-		return awsTypes.Profiles{}, err
+		// Returning profiles since it's empty here
+		return profiles, err
 		// May change later since this assumes no credentials file found in ~/.aws
 	}
 
+	// Parse AWS config file
 	v := viper.New()
 	v.SetConfigName("credentials")
 	v.SetConfigType("ini")
@@ -161,7 +165,7 @@ func getProfilesFromConfig(findDefault bool) (awsTypes.Profiles, error) {
 	if err != nil {
 		return awsTypes.Profiles{}, err
 	}
-	// fmt.Printf("Configuration file:\n%+v\n\n", v)
+	// fmt.Printf("Configuration file:\n%+v\n\n", v) // DEBUG
 	allSettings := v.AllSettings()
 
 	var currentProfile string
@@ -169,19 +173,17 @@ func getProfilesFromConfig(findDefault bool) (awsTypes.Profiles, error) {
 		currentProfile = getCurrentProfile()
 	}
 
-	var profiles awsTypes.Profiles
 	for key, value := range allSettings {
 		// fmt.Printf("Key: %s\nValue: %+v\n\n", key, value) // DEBUG
 		var cred awsTypes.Credential
 		mapstructure.Decode(value, &cred)
-		profile := awsTypes.Profile{
+		profiles.Profiles = append(profiles.Profiles, awsTypes.Profile{
 			Name:      key,
 			Cloud:     "aws",
 			Cred:      cred,
 			Source:    "ConfigFile",
 			IsCurrent: findDefault && currentProfile == key,
-		}
-		profiles.Profiles = append(profiles.Profiles, profile)
+		})
 	}
 
 	// Sort by profile name
