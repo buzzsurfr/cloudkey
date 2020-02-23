@@ -47,8 +47,7 @@ to quickly create a Cobra application.`,
 			}
 		}
 
-		printTable(profiles.Profiles) // DEBUG
-		// fmt.Printf("%+v\n", profiles) // DEBUG
+		renderTable(profiles.Profiles) // DEBUG
 
 		// Get Current username if none provided
 		// sess := session.New()
@@ -236,7 +235,7 @@ func getEnviron() (awsTypes.Credential, bool) {
 	return awsTypes.Credential{}, false
 }
 
-func printTable(profiles []awsTypes.Profile) error {
+func renderTable(profiles []awsTypes.Profile) error {
 	table := tablewriter.NewWriter(os.Stdout)
 	table.SetHeader([]string{"Cloud", "Name", "Access Key ID", "Source"})
 	table.SetAutoWrapText(false)
