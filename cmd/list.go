@@ -164,6 +164,18 @@ func readConfig() (awsTypes.Profiles, error) {
 		}
 		profiles.Profiles = append(profiles.Profiles, profile)
 	}
+
+	// Check for and add environment variable credentials
+	if c, ok := getEnviron(); ok {
+		profiles.Profiles = append(profiles.Profiles, awsTypes.Profile{
+			Name:      "",
+			Cloud:     "aws",
+			Cred:      c,
+			Source:    "EnvironmentVariable",
+			IsCurrent: false,
+		})
+	}
+
 	// Sort by profile name
 	sort.Slice(profiles.Profiles, func(i, j int) bool { return profiles.Profiles[i].Name < profiles.Profiles[j].Name })
 
@@ -184,6 +196,22 @@ func getConfigPath() (string, error) {
 	configPath := hde + string(os.PathSeparator) + ".aws"
 	// fmt.Printf("AWS Config File directory: %s\n", configPath) // DEBUG
 	return configPath, nil
+}
+
+func getEnviron() (awsTypes.Credential, bool) {
+	if _, snok := os.LookupEnv("AWS_SESSION_NAME"); snok {
+		return awsTypes.Credential{}, false
+	}
+	akid, akok := os.LookupEnv("AWS_ACCESS_KEY_ID")
+	sak, skok := os.LookupEnv("AWS_SECRET_ACCESS_KEY")
+	if akok && skok {
+		return awsTypes.Credential{
+			AccessKeyID:     akid,
+			SecretAccessKey: sak,
+		}, true
+	}
+
+	return awsTypes.Credential{}, false
 }
 
 func printTable(profiles []awsTypes.Profile) error {
