@@ -31,13 +31,28 @@ This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		// fmt.Println("list called")
+		var profiles awsTypes.Profiles
+
+		// Check for and add environment variable credentials
+		envProfile, err := getProfileFromEnv()
+		if err == nil { // we found a profile in env
+			profiles.Profiles = append(profiles.Profiles, envProfile)
+		}
 
 		// Parse ~/.aws/credentials file (TOML format) for profiles and credentials
-		readConfig()
+		configProfiles, err := getProfilesFromConfig(err != nil)
+		if err == nil { // we found profile(s) in config file
+			for _, p := range configProfiles.Profiles {
+				profiles.Profiles = append(profiles.Profiles, p)
+			}
+		}
+
+		printTable(profiles.Profiles) // DEBUG
+		// fmt.Printf("%+v\n", profiles) // DEBUG
 
 		// Get Current username if none provided
 		// sess := session.New()
-		// currentUserName, err := getCurrentUserName(sess)
+		// currentUserName, err := getSessionContext(sess)
 		// svc := iam.New(sess)
 		// result, err := svc.ListAccessKeys(&iam.ListAccessKeysInput{
 		// 	UserName: aws.String(currentUserName),
@@ -77,7 +92,7 @@ func init() {
 	// listCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }
 
-func getCurrentUserName(sess *session.Session) (string, error) {
+func getSessionContext(sess *session.Session) (string, error) {
 	var userName string
 
 	// AWS sts:GetCallerIdentity API
@@ -131,7 +146,7 @@ func getCurrentProfile() string {
 	return currentProfile
 }
 
-func readConfig() (awsTypes.Profiles, error) {
+func getProfilesFromConfig(findDefault bool) (awsTypes.Profiles, error) {
 	awsConfigPath, err := getConfigPath()
 	if err != nil {
 		return awsTypes.Profiles{}, err
@@ -147,9 +162,13 @@ func readConfig() (awsTypes.Profiles, error) {
 		return awsTypes.Profiles{}, err
 	}
 	// fmt.Printf("Configuration file:\n%+v\n\n", v)
-
 	allSettings := v.AllSettings()
-	currentProfile := getCurrentProfile()
+
+	var currentProfile string
+	if findDefault {
+		currentProfile = getCurrentProfile()
+	}
+
 	var profiles awsTypes.Profiles
 	for key, value := range allSettings {
 		// fmt.Printf("Key: %s\nValue: %+v\n\n", key, value) // DEBUG
@@ -160,28 +179,29 @@ func readConfig() (awsTypes.Profiles, error) {
 			Cloud:     "aws",
 			Cred:      cred,
 			Source:    "ConfigFile",
-			IsCurrent: currentProfile == key,
+			IsCurrent: findDefault && currentProfile == key,
 		}
 		profiles.Profiles = append(profiles.Profiles, profile)
-	}
-
-	// Check for and add environment variable credentials
-	if c, ok := getEnviron(); ok {
-		profiles.Profiles = append(profiles.Profiles, awsTypes.Profile{
-			Name:      "",
-			Cloud:     "aws",
-			Cred:      c,
-			Source:    "EnvironmentVariable",
-			IsCurrent: false,
-		})
 	}
 
 	// Sort by profile name
 	sort.Slice(profiles.Profiles, func(i, j int) bool { return profiles.Profiles[i].Name < profiles.Profiles[j].Name })
 
-	printTable(profiles.Profiles) // DEBUG
-	// fmt.Printf("%+v\n", profiles) // DEBUG
 	return profiles, err
+}
+
+func getProfileFromEnv() (awsTypes.Profile, error) {
+	if c, ok := getEnviron(); ok {
+		return awsTypes.Profile{
+			Name:      "",
+			Cloud:     "aws",
+			Cred:      c,
+			Source:    "EnvironmentVariable",
+			IsCurrent: true,
+		}, nil
+	}
+	return awsTypes.Profile{}, errors.New("No credential found in environment variable")
+
 }
 
 func getConfigPath() (string, error) {
