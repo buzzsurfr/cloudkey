@@ -11,7 +11,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/sts"
-	awsTypes "github.com/buzzsurfr/cloudkey/cloud/aws/types"
+	"github.com/buzzsurfr/cloudkey/cloud/aws"
 	homedir "github.com/mitchellh/go-homedir"
 	"github.com/mitchellh/mapstructure"
 	"github.com/olekukonko/tablewriter"
@@ -31,7 +31,7 @@ This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		// fmt.Println("list called")
-		var profiles awsTypes.Profiles
+		var profiles aws.Profiles
 
 		// Check for and add environment variable credentials
 		envProfile, err := getProfileFromEnv()
@@ -145,8 +145,8 @@ func getCurrentProfile() string {
 	return currentProfile
 }
 
-func getProfilesFromConfig(findDefault bool) (awsTypes.Profiles, error) {
-	var profiles awsTypes.Profiles
+func getProfilesFromConfig(findDefault bool) (aws.Profiles, error) {
+	var profiles aws.Profiles
 
 	awsConfigPath, err := getConfigPath()
 	if err != nil {
@@ -162,7 +162,7 @@ func getProfilesFromConfig(findDefault bool) (awsTypes.Profiles, error) {
 	v.AddConfigPath(awsConfigPath)
 	err = v.ReadInConfig()
 	if err != nil {
-		return awsTypes.Profiles{}, err
+		return aws.Profiles{}, err
 	}
 	// fmt.Printf("Configuration file:\n%+v\n\n", v) // DEBUG
 	allSettings := v.AllSettings()
@@ -174,9 +174,9 @@ func getProfilesFromConfig(findDefault bool) (awsTypes.Profiles, error) {
 
 	for key, value := range allSettings {
 		// fmt.Printf("Key: %s\nValue: %+v\n\n", key, value) // DEBUG
-		var cred awsTypes.Credential
+		var cred aws.Credential
 		mapstructure.Decode(value, &cred)
-		profiles.Profiles = append(profiles.Profiles, awsTypes.Profile{
+		profiles.Profiles = append(profiles.Profiles, aws.Profile{
 			Name:      key,
 			Cloud:     "aws",
 			Cred:      cred,
@@ -191,9 +191,9 @@ func getProfilesFromConfig(findDefault bool) (awsTypes.Profiles, error) {
 	return profiles, err
 }
 
-func getProfileFromEnv() (awsTypes.Profile, error) {
+func getProfileFromEnv() (aws.Profile, error) {
 	if c, ok := getEnviron(); ok {
-		return awsTypes.Profile{
+		return aws.Profile{
 			Name:      "",
 			Cloud:     "aws",
 			Cred:      c,
@@ -201,7 +201,7 @@ func getProfileFromEnv() (awsTypes.Profile, error) {
 			IsCurrent: true,
 		}, nil
 	}
-	return awsTypes.Profile{}, errors.New("No credential found in environment variable")
+	return aws.Profile{}, errors.New("No credential found in environment variable")
 
 }
 
@@ -219,23 +219,23 @@ func getConfigPath() (string, error) {
 	return configPath, nil
 }
 
-func getEnviron() (awsTypes.Credential, bool) {
+func getEnviron() (aws.Credential, bool) {
 	if _, snok := os.LookupEnv("AWS_SESSION_NAME"); snok {
-		return awsTypes.Credential{}, false
+		return aws.Credential{}, false
 	}
 	akid, akok := os.LookupEnv("AWS_ACCESS_KEY_ID")
 	sak, skok := os.LookupEnv("AWS_SECRET_ACCESS_KEY")
 	if akok && skok {
-		return awsTypes.Credential{
+		return aws.Credential{
 			AccessKeyID:     akid,
 			SecretAccessKey: sak,
 		}, true
 	}
 
-	return awsTypes.Credential{}, false
+	return aws.Credential{}, false
 }
 
-func renderTable(profiles []awsTypes.Profile) error {
+func renderTable(profiles []aws.Profile) error {
 	table := tablewriter.NewWriter(os.Stdout)
 	table.SetHeader([]string{"Cloud", "Name", "Access Key ID", "Source"})
 	table.SetAutoWrapText(false)

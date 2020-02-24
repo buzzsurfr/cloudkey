@@ -1,4 +1,4 @@
-package types
+package aws
 
 // Credential is an AWS credential from the credentials file
 type Credential struct {
@@ -9,11 +9,11 @@ type Credential struct {
 
 // Profile is a local profile containing the credential and configuration.
 type Profile struct {
-	Name   string
-	Cloud  string
-	Cred   Credential
+	Name  string
+	Cloud string
+	Cred  Credential
 	// config    Config
-	Source string
+	Source    string
 	IsCurrent bool
 }
 
