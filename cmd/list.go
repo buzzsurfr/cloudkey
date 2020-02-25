@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"os"
-	"sort"
 	"strings"
 
 	"github.com/aws/aws-sdk-go/aws/arn"
@@ -12,11 +11,8 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/sts"
 	"github.com/buzzsurfr/cloudkey/cloud/aws"
-	homedir "github.com/mitchellh/go-homedir"
-	"github.com/mitchellh/mapstructure"
 	"github.com/olekukonko/tablewriter"
 	"github.com/spf13/cobra"
-	"github.com/spf13/viper"
 )
 
 // listCmd represents the list command
@@ -34,13 +30,13 @@ to quickly create a Cobra application.`,
 		var profiles aws.Profiles
 
 		// Check for and add environment variable credentials
-		envProfile, err := getProfileFromEnv()
+		envProfile, err := aws.FromEnviron()
 		if err == nil { // we found a profile in env
 			profiles.Profiles = append(profiles.Profiles, envProfile)
 		}
 
-		// Parse ~/.aws/credentials file (TOML format) for profiles and credentials
-		configProfiles, err := getProfilesFromConfig(err != nil)
+		// Parse ~/.aws/credentials file (INI format) for profiles and credentials
+		configProfiles, err := aws.FromConfigFile(err != nil)
 		if err == nil { // we found profile(s) in config file
 			for _, p := range configProfiles.Profiles {
 				profiles.Profiles = append(profiles.Profiles, p)
@@ -125,114 +121,6 @@ func getSessionContext(sess *session.Session) (string, error) {
 	userName = s[1]
 
 	return userName, nil
-}
-
-func getCurrentProfile() string {
-	currentProfile := "default"
-
-	// Check environment variables
-	profileVars := []string{
-		"AWS_DEFAULT_PROFILE",
-		"AWS_PROFILE",
-	}
-	for _, env := range profileVars {
-		v, ok := os.LookupEnv(env)
-		if ok {
-			currentProfile = v
-		}
-
-	}
-	return currentProfile
-}
-
-func getProfilesFromConfig(findDefault bool) (aws.Profiles, error) {
-	var profiles aws.Profiles
-
-	awsConfigPath, err := getConfigPath()
-	if err != nil {
-		// Returning profiles since it's empty here
-		return profiles, err
-		// May change later since this assumes no credentials file found in ~/.aws
-	}
-
-	// Parse AWS config file
-	v := viper.New()
-	v.SetConfigName("credentials")
-	v.SetConfigType("ini")
-	v.AddConfigPath(awsConfigPath)
-	err = v.ReadInConfig()
-	if err != nil {
-		return aws.Profiles{}, err
-	}
-	// fmt.Printf("Configuration file:\n%+v\n\n", v) // DEBUG
-	allSettings := v.AllSettings()
-
-	var currentProfile string
-	if findDefault {
-		currentProfile = getCurrentProfile()
-	}
-
-	for key, value := range allSettings {
-		// fmt.Printf("Key: %s\nValue: %+v\n\n", key, value) // DEBUG
-		var cred aws.Credential
-		mapstructure.Decode(value, &cred)
-		profiles.Profiles = append(profiles.Profiles, aws.Profile{
-			Name:      key,
-			Cloud:     "aws",
-			Cred:      cred,
-			Source:    "ConfigFile",
-			IsCurrent: findDefault && currentProfile == key,
-		})
-	}
-
-	// Sort by profile name
-	sort.Slice(profiles.Profiles, func(i, j int) bool { return profiles.Profiles[i].Name < profiles.Profiles[j].Name })
-
-	return profiles, err
-}
-
-func getProfileFromEnv() (aws.Profile, error) {
-	if c, ok := getEnviron(); ok {
-		return aws.Profile{
-			Name:      "",
-			Cloud:     "aws",
-			Cred:      c,
-			Source:    "EnvironmentVariable",
-			IsCurrent: true,
-		}, nil
-	}
-	return aws.Profile{}, errors.New("No credential found in environment variable")
-
-}
-
-func getConfigPath() (string, error) {
-	hd, err := homedir.Dir()
-	if err != nil {
-		return "", err
-	}
-	hde, _ := homedir.Expand(hd)
-	if err != nil {
-		return "", err
-	}
-	configPath := hde + string(os.PathSeparator) + ".aws"
-	// fmt.Printf("AWS Config File directory: %s\n", configPath) // DEBUG
-	return configPath, nil
-}
-
-func getEnviron() (aws.Credential, bool) {
-	if _, snok := os.LookupEnv("AWS_SESSION_NAME"); snok {
-		return aws.Credential{}, false
-	}
-	akid, akok := os.LookupEnv("AWS_ACCESS_KEY_ID")
-	sak, skok := os.LookupEnv("AWS_SECRET_ACCESS_KEY")
-	if akok && skok {
-		return aws.Credential{
-			AccessKeyID:     akid,
-			SecretAccessKey: sak,
-		}, true
-	}
-
-	return aws.Credential{}, false
 }
 
 func renderTable(profiles []aws.Profile) error {
