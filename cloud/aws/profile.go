@@ -37,6 +37,24 @@ func (p *Profile) RotateKey() (bool, error) {
 	return false, nil
 }
 
+func Current() (Profile, error) {
+	envProfile, err := FromEnviron()
+	if err == nil { // we found a profile in env
+		return envProfile, err
+	}
+	// Didn't find profile in environment variable, get profile from config file
+	configProfiles, err := FromConfigFile(true)
+	if err == nil { // we found profile(s) in config file
+		for _, p := range configProfiles.Profiles {
+			if p.IsCurrent {
+				return p
+			}
+		}
+	}
+	// Didn't find profile in either environment variable or config file, return error
+	return Profile{}, errors.New("No credential found")
+}
+
 // FromEnviron gets a profile from the credential environment variables
 func FromEnviron() (Profile, error) {
 	if c, ok := getCredentialFromEnviron(); ok {
