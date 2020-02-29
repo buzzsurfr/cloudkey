@@ -37,6 +37,7 @@ func (p *Profile) RotateKey() (bool, error) {
 	return false, nil
 }
 
+// Current gets the current profile
 func Current() (Profile, error) {
 	envProfile, err := FromEnviron()
 	if err == nil { // we found a profile in env
@@ -47,7 +48,7 @@ func Current() (Profile, error) {
 	if err == nil { // we found profile(s) in config file
 		for _, p := range configProfiles.Profiles {
 			if p.IsCurrent {
-				return p
+				return p, err
 			}
 		}
 	}
