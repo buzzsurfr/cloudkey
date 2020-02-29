@@ -1,6 +1,10 @@
 package aws
 
-import "os"
+import (
+	"os"
+
+	"github.com/aws/aws-sdk-go/service/iam"
+)
 
 // Credential is an AWS credential from the credentials file
 type Credential struct {
@@ -23,4 +27,12 @@ func getCredentialFromEnviron() (Credential, bool) {
 	}
 
 	return Credential{}, false
+}
+
+// FromAccessKey converts an iam.AccessKey to a Credential
+func FromAccessKey(key iam.AccessKey) (Credential, error) {
+	return Credential{
+		AccessKeyID:     *key.AccessKeyId,
+		SecretAccessKey: *key.SecretAccessKey,
+	}, nil
 }
