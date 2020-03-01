@@ -27,8 +27,14 @@ Cobra is a CLI library for Go that empowers applications.
 This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		fmt.Println("rotate called")
-		p, err := cloudAWS.Current()
+		// fmt.Println("rotate called")
+		var p cloudAWS.Profile
+		var err error
+		if profileName != "" {
+			p, err = cloudAWS.GetByName(profileName)
+		} else {
+			p, err = cloudAWS.Current()
+		}
 		if err != nil {
 			panic(err)
 		}
@@ -113,7 +119,7 @@ to quickly create a Cobra application.`,
 
 		// Deactivate old access key using new access key
 		newIamSvc := iam.New(newSess)
-		_, err := newIamSvc.UpdateAccessKey(&iam.UpdateAccessKeyInput{
+		_, err = newIamSvc.UpdateAccessKey(&iam.UpdateAccessKeyInput{
 			AccessKeyId: aws.String(oldCred.AccessKeyID),
 			Status:      aws.String("Inactive"),
 			UserName:    aws.String(userName),
@@ -139,7 +145,7 @@ to quickly create a Cobra application.`,
 		}
 
 		// Delete old access key using new access key
-		_, err := newIamSvc.DeleteAccessKey(&iam.DeleteAccessKeyInput{
+		_, err = newIamSvc.DeleteAccessKey(&iam.DeleteAccessKeyInput{
 			AccessKeyId: aws.String(oldCred.AccessKeyID),
 			UserName:    aws.String(userName),
 		})
@@ -177,7 +183,7 @@ func init() {
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
 	// rotateCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
-	rotateCmd.Flags().StringVarP(&profileName, "profile", "p", "default", "Profile to rotate")
+	rotateCmd.Flags().StringVarP(&profileName, "profile", "p", "", "Profile to rotate")
 }
 
 // SessionUserName gets the user name of the current session
