@@ -73,7 +73,7 @@ func Current() (Profile, error) {
 	return Profile{}, errors.New("No credential found")
 }
 
-// Get gets the profile by name
+// GetByName gets the profile by name
 func GetByName(profileName string) (Profile, error) {
 	configProfiles, err := FromConfigFile(true)
 	if err == nil { // we found profile(s) in config file
@@ -202,6 +202,7 @@ func (p *Profile) UpdateCredential(cred Credential) error {
 	return nil
 }
 
+// WriteConfig writes the profiles to the default config file
 func (p *Profiles) WriteConfig() error {
 	configPath, err := getConfigPath()
 	if err != nil {
@@ -211,6 +212,7 @@ func (p *Profiles) WriteConfig() error {
 	return p.WriteConfigAs(configPath + string(os.PathSeparator) + fileName)
 }
 
+// WriteConfigAs writes the profiles to the config filename specified
 func (p *Profiles) WriteConfigAs(filename string) error {
 	// Marshal to INI file type
 	cfg := ini.Empty()
