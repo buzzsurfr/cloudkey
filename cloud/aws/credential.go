@@ -18,11 +18,11 @@ func getCredentialFromEnviron() (Credential, bool) {
 		return Credential{}, false
 	}
 	akid, akok := os.LookupEnv("AWS_ACCESS_KEY_ID")
-	sak, skok := os.LookupEnv("AWS_SECRET_ACCESS_KEY")
+	asak, skok := os.LookupEnv("AWS_SECRET_ACCESS_KEY")
 	if akok && skok {
 		return Credential{
 			AccessKeyID:     akid,
-			SecretAccessKey: sak,
+			SecretAccessKey: asak,
 		}, true
 	}
 
@@ -31,8 +31,9 @@ func getCredentialFromEnviron() (Credential, bool) {
 
 // FromAccessKey converts an iam.AccessKey to a Credential
 func FromAccessKey(key iam.AccessKey) (Credential, error) {
-	return Credential{
+	cred := Credential{
 		AccessKeyID:     *key.AccessKeyId,
 		SecretAccessKey: *key.SecretAccessKey,
-	}, nil
+	}
+	return cred, nil
 }

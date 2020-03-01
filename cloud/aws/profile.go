@@ -2,8 +2,13 @@ package aws
 
 import (
 	"errors"
+	"fmt"
 	"os"
+	"os/exec"
 	"sort"
+
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/credentials"
 
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/mitchellh/go-homedir"
@@ -28,6 +33,18 @@ type Profiles struct {
 
 // Session creates an AWS session
 func (p *Profile) Session() *session.Session {
+	switch p.Source {
+	case "EnvironmentVariable":
+		// fmt.Println("Source: EnvironmentVariable")
+		return session.Must(session.NewSession(&aws.Config{
+			Credentials: credentials.NewEnvCredentials(),
+		}))
+	case "ConfigFile":
+		// fmt.Println("Source: ConfigFile")
+		return session.Must(session.NewSessionWithOptions(session.Options{
+			Profile: p.Name,
+		}))
+	}
 	return session.Must(session.NewSession())
 }
 
@@ -146,4 +163,26 @@ func getCurrentProfile() string {
 
 	}
 	return currentProfile
+}
+
+// UpdateCredential locally updates the credential based on the profile type
+func (p *Profile) UpdateCredential(cred Credential) error {
+	switch p.Source {
+	case "EnvironmentVariable":
+		os.Setenv("AWS_ACCESS_KEY_ID", cred.AccessKeyID)
+		os.Setenv("AWS_SECRET_ACCESS_KEY", cred.SecretAccessKey)
+	case "ConfigFile":
+		fmt.Println("aws", "--profile", p.Name, "configure", "set", "aws_access_key_id", cred.AccessKeyID)
+		akidErr := exec.Command("aws", "--profile", p.Name, "configure", "set", "aws_access_key_id", cred.AccessKeyID).Run()
+		if akidErr != nil {
+			panic(akidErr)
+		}
+		asakErr := exec.Command("aws", "--profile", p.Name, "configure", "set", "aws_secret_access_key", cred.SecretAccessKey).Run()
+		if asakErr != nil {
+			panic(asakErr)
+		}
+	}
+	p.Cred = cred
+
+	return nil
 }
