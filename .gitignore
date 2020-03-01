@@ -16,3 +16,5 @@
 
 # Binary name
 cloudkey
+*.tar.gz
+*.zip

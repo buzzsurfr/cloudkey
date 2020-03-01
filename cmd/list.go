@@ -3,7 +3,6 @@ package cmd
 import (
 	"errors"
 	"fmt"
-	"os"
 	"strings"
 
 	"github.com/aws/aws-sdk-go/aws/arn"
@@ -11,6 +10,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/sts"
 	"github.com/buzzsurfr/cloudkey/cloud/aws"
+	"github.com/mattn/go-colorable"
 	"github.com/olekukonko/tablewriter"
 	"github.com/spf13/cobra"
 )
@@ -124,7 +124,7 @@ func getSessionContext(sess *session.Session) (string, error) {
 }
 
 func renderTable(profiles []aws.Profile) error {
-	table := tablewriter.NewWriter(os.Stdout)
+	table := tablewriter.NewWriter(colorable.NewColorableStdout())
 	table.SetHeader([]string{"Cloud", "Name", "Access Key ID", "Source"})
 	table.SetAutoWrapText(false)
 	table.SetAutoFormatHeaders(true)
