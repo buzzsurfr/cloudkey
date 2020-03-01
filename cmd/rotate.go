@@ -113,7 +113,7 @@ to quickly create a Cobra application.`,
 
 		// Deactivate old access key using new access key
 		newIamSvc := iam.New(newSess)
-		deactivateResult, err := newIamSvc.UpdateAccessKey(&iam.UpdateAccessKeyInput{
+		_, err := newIamSvc.UpdateAccessKey(&iam.UpdateAccessKeyInput{
 			AccessKeyId: aws.String(oldCred.AccessKeyID),
 			Status:      aws.String("Inactive"),
 			UserName:    aws.String(userName),
@@ -137,10 +137,9 @@ to quickly create a Cobra application.`,
 			}
 			return
 		}
-		fmt.Printf("UpdateAccessKey: %+v\n", deactivateResult)
 
 		// Delete old access key using new access key
-		deleteResult, err := newIamSvc.DeleteAccessKey(&iam.DeleteAccessKeyInput{
+		_, err := newIamSvc.DeleteAccessKey(&iam.DeleteAccessKeyInput{
 			AccessKeyId: aws.String(oldCred.AccessKeyID),
 			UserName:    aws.String(userName),
 		})
@@ -163,7 +162,6 @@ to quickly create a Cobra application.`,
 			}
 			return
 		}
-		fmt.Printf("DeleteAccessKey: %+v\n", deleteResult)
 	},
 }
 

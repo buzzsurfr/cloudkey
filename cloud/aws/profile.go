@@ -2,7 +2,6 @@ package aws
 
 import (
 	"errors"
-	"fmt"
 	"os"
 	"os/exec"
 	"sort"
@@ -172,7 +171,6 @@ func (p *Profile) UpdateCredential(cred Credential) error {
 		os.Setenv("AWS_ACCESS_KEY_ID", cred.AccessKeyID)
 		os.Setenv("AWS_SECRET_ACCESS_KEY", cred.SecretAccessKey)
 	case "ConfigFile":
-		fmt.Println("aws", "--profile", p.Name, "configure", "set", "aws_access_key_id", cred.AccessKeyID)
 		akidErr := exec.Command("aws", "--profile", p.Name, "configure", "set", "aws_access_key_id", cred.AccessKeyID).Run()
 		if akidErr != nil {
 			panic(akidErr)
