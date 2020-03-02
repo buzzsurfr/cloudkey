@@ -19,6 +19,7 @@ import (
 	"fmt"
 
 	"github.com/spf13/cobra"
+	goVersion "go.hein.dev/go-version"
 )
 
 // versionCmd represents the version command

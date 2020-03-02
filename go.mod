@@ -10,6 +10,6 @@ require (
 	github.com/olekukonko/tablewriter v0.0.4
 	github.com/spf13/cobra v0.0.6
 	github.com/spf13/viper v1.6.2
-	golang.org/x/text v0.3.2 // indirect
+	go.hein.dev/go-version v0.1.0
 	gopkg.in/ini.v1 v1.52.0
 )
