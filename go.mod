@@ -11,5 +11,6 @@ require (
 	github.com/spf13/cobra v0.0.6
 	github.com/spf13/viper v1.6.2
 	go.hein.dev/go-version v0.1.0
+	golang.org/x/sys v0.0.0-20200301204400-5d559ad92b82 // indirect
 	gopkg.in/ini.v1 v1.52.0
 )

@@ -17,6 +17,13 @@ package main
 
 import "github.com/buzzsurfr/cloudkey/cmd"
 
+var (
+	version    = "dev"
+	commit     = "none"
+	date       = "unknown"
+
+)
+
 func main() {
-	cmd.Execute()
+	cmd.Execute(version, commit, date)
 }
