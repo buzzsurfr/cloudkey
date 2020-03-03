@@ -14,7 +14,7 @@ type Credential struct {
 }
 
 func getCredentialFromEnviron() (Credential, bool) {
-	if _, snok := os.LookupEnv("AWS_SESSION_NAME"); snok {
+	if _, snok := os.LookupEnv("AWS_SESSION_TOKEN"); snok {
 		return Credential{}, false
 	}
 	akid, akok := os.LookupEnv("AWS_ACCESS_KEY_ID")
