@@ -33,13 +33,13 @@ jobs:
     - uses: actions/checkout@master
     - name: Get coverage report
       run: |
+        go test -race -coverprofile=coverage.txt -covermode=atomic
         bash <(curl -s https://codecov.io/bash)
     - name: Upload coverage to Codecov
       uses: codecov/codecov-action@v1
       with:
         token: ${{ secrets.CODECOV_TOKEN }}
-        file: ./coverage.xml
+        file: ./coverage.txt
         flags: unittests
         name: codecov-umbrella
-        yml: ./codecov.yml 
         fail_ci_if_error: true
