@@ -26,3 +26,19 @@ jobs:
 
     - name: Build
       run: go build -v .
+  run:
+    name: Run
+    steps:
+    - uses: actions/checkout@master
+    - name: Get coverage report
+      run: |
+        bash <(curl -s https://codecov.io/bash)
+    - name: Upload coverage to Codecov
+      uses: codecov/codecov-action@v1
+      with:
+        token: ${{ secrets.CODECOV_TOKEN }}
+        file: ./coverage.xml
+        flags: unittests
+        name: codecov-umbrella
+        yml: ./codecov.yml 
+        fail_ci_if_error: true
