@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"sort"
 
 	"github.com/aws/aws-sdk-go/aws"
@@ -112,7 +113,7 @@ func FromConfigFile(findDefault bool) (Profiles, error) {
 	}
 
 	// Parse AWS config file
-	profiles, err = parseConfigFile(awsConfigPath, findDefault)
+	profiles, err = parseConfigFile(filepath.Join(awsConfigPath, "credentials"), findDefault)
 	if err != nil {
 		return Profiles{}, err
 	}
@@ -127,9 +128,8 @@ func parseConfigFile(path string, findDefault bool) (Profiles, error) {
 	var profiles Profiles
 
 	v := viper.New()
-	v.SetConfigName("credentials")
+	v.SetConfigFile(path)
 	v.SetConfigType("ini")
-	v.AddConfigPath(path)
 	err := v.ReadInConfig()
 	if err != nil {
 		return profiles, err // Returning profiles since it's empty here
