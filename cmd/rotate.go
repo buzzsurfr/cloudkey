@@ -26,149 +26,151 @@ and usage of using your command. For example:
 Cobra is a CLI library for Go that empowers applications.
 This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
-	Run: func(cmd *cobra.Command, args []string) {
-		// fmt.Println("rotate called")
-		var p cloudAWS.Profile
-		var err error
-		if profileName != "" {
-			p, err = cloudAWS.GetByName(profileName)
+	Run: rotateFunc,
+}
+
+func rotateFunc(cmd *cobra.Command, args []string) {
+	// fmt.Println("rotate called")
+	var p cloudAWS.Profile
+	var err error
+	if profileName != "" {
+		p, err = cloudAWS.GetByName(profileName)
+	} else {
+		p, err = cloudAWS.Current()
+	}
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("Profile: %+v\n", p)
+
+	oldSess := p.Session()
+	oldCred := p.Cred
+
+	// List Access Keys
+	userName, err := SessionUserName(oldSess)
+	if err != nil {
+		panic(err)
+	}
+
+	// Get Access Keys
+	oldIamSvc := iam.New(oldSess)
+	result, err := oldIamSvc.ListAccessKeys(&iam.ListAccessKeysInput{
+		UserName: aws.String(userName),
+	})
+	if err != nil {
+		if aerr, ok := err.(awserr.Error); ok {
+			switch aerr.Code() {
+			case iam.ErrCodeNoSuchEntityException:
+				fmt.Println(iam.ErrCodeNoSuchEntityException, aerr.Error())
+			case iam.ErrCodeServiceFailureException:
+				fmt.Println(iam.ErrCodeServiceFailureException, aerr.Error())
+			default:
+				fmt.Println(aerr.Error())
+			}
 		} else {
-			p, err = cloudAWS.Current()
+			// Print the error, cast err to awserr.Error to get the Code and
+			// Message from an error.
+			fmt.Println(err.Error())
 		}
-		if err != nil {
-			panic(err)
-		}
-		fmt.Printf("Profile: %+v\n", p)
+		return
+	}
+	fmt.Printf("ListAccessKeys: %+v\n", result)
+	if len(result.AccessKeyMetadata) != 1 {
+		fmt.Println("Too many access keys")
+		return
+	}
 
-		oldSess := p.Session()
-		oldCred := p.Cred
-
-		// List Access Keys
-		userName, err := SessionUserName(oldSess)
-		if err != nil {
-			panic(err)
-		}
-
-		// Get Access Keys
-		oldIamSvc := iam.New(oldSess)
-		result, err := oldIamSvc.ListAccessKeys(&iam.ListAccessKeysInput{
-			UserName: aws.String(userName),
-		})
-		if err != nil {
-			if aerr, ok := err.(awserr.Error); ok {
-				switch aerr.Code() {
-				case iam.ErrCodeNoSuchEntityException:
-					fmt.Println(iam.ErrCodeNoSuchEntityException, aerr.Error())
-				case iam.ErrCodeServiceFailureException:
-					fmt.Println(iam.ErrCodeServiceFailureException, aerr.Error())
-				default:
-					fmt.Println(aerr.Error())
-				}
-			} else {
-				// Print the error, cast err to awserr.Error to get the Code and
-				// Message from an error.
-				fmt.Println(err.Error())
+	// Create new access key
+	newAccessKey, err := oldIamSvc.CreateAccessKey(&iam.CreateAccessKeyInput{
+		UserName: aws.String(userName),
+	})
+	if err != nil {
+		if aerr, ok := err.(awserr.Error); ok {
+			switch aerr.Code() {
+			case iam.ErrCodeNoSuchEntityException:
+				fmt.Println(iam.ErrCodeNoSuchEntityException, aerr.Error())
+			case iam.ErrCodeLimitExceededException:
+				fmt.Println(iam.ErrCodeLimitExceededException, aerr.Error())
+			case iam.ErrCodeServiceFailureException:
+				fmt.Println(iam.ErrCodeServiceFailureException, aerr.Error())
+			default:
+				fmt.Println(aerr.Error())
 			}
-			return
+		} else {
+			// Print the error, cast err to awserr.Error to get the Code and
+			// Message from an error.
+			fmt.Println(err.Error())
 		}
-		fmt.Printf("ListAccessKeys: %+v\n", result)
-		if len(result.AccessKeyMetadata) != 1 {
-			fmt.Println("Too many access keys")
-			return
-		}
+		return
+	}
+	fmt.Printf("CreateAccessKey: %+v\n", newAccessKey)
 
-		// Create new access key
-		newAccessKey, err := oldIamSvc.CreateAccessKey(&iam.CreateAccessKeyInput{
-			UserName: aws.String(userName),
-		})
-		if err != nil {
-			if aerr, ok := err.(awserr.Error); ok {
-				switch aerr.Code() {
-				case iam.ErrCodeNoSuchEntityException:
-					fmt.Println(iam.ErrCodeNoSuchEntityException, aerr.Error())
-				case iam.ErrCodeLimitExceededException:
-					fmt.Println(iam.ErrCodeLimitExceededException, aerr.Error())
-				case iam.ErrCodeServiceFailureException:
-					fmt.Println(iam.ErrCodeServiceFailureException, aerr.Error())
-				default:
-					fmt.Println(aerr.Error())
-				}
-			} else {
-				// Print the error, cast err to awserr.Error to get the Code and
-				// Message from an error.
-				fmt.Println(err.Error())
+	// Create new credential from access key
+	cred, err := cloudAWS.FromAccessKey(*newAccessKey.AccessKey)
+	if err != nil {
+		panic(err)
+	}
+
+	// Save cred to profile
+	p.UpdateCredential(cred)
+
+	// Create new AWS session
+	newSess := p.Session()
+
+	// Sleep for 15 seconds to allow access key to activate
+	time.Sleep(15 * time.Second)
+
+	// Deactivate old access key using new access key
+	newIamSvc := iam.New(newSess)
+	_, err = newIamSvc.UpdateAccessKey(&iam.UpdateAccessKeyInput{
+		AccessKeyId: aws.String(oldCred.AccessKeyID),
+		Status:      aws.String("Inactive"),
+		UserName:    aws.String(userName),
+	})
+	if err != nil {
+		if aerr, ok := err.(awserr.Error); ok {
+			switch aerr.Code() {
+			case iam.ErrCodeNoSuchEntityException:
+				fmt.Println(iam.ErrCodeNoSuchEntityException, aerr.Error())
+			case iam.ErrCodeLimitExceededException:
+				fmt.Println(iam.ErrCodeLimitExceededException, aerr.Error())
+			case iam.ErrCodeServiceFailureException:
+				fmt.Println(iam.ErrCodeServiceFailureException, aerr.Error())
+			default:
+				fmt.Println(aerr.Error())
 			}
-			return
+		} else {
+			// Print the error, cast err to awserr.Error to get the Code and
+			// Message from an error.
+			fmt.Println(err.Error())
 		}
-		fmt.Printf("CreateAccessKey: %+v\n", newAccessKey)
+		return
+	}
 
-		// Create new credential from access key
-		cred, err := cloudAWS.FromAccessKey(*newAccessKey.AccessKey)
-		if err != nil {
-			panic(err)
-		}
-
-		// Save cred to profile
-		p.UpdateCredential(cred)
-
-		// Create new AWS session
-		newSess := p.Session()
-
-		// Sleep for 15 seconds to allow access key to activate
-		time.Sleep(15 * time.Second)
-
-		// Deactivate old access key using new access key
-		newIamSvc := iam.New(newSess)
-		_, err = newIamSvc.UpdateAccessKey(&iam.UpdateAccessKeyInput{
-			AccessKeyId: aws.String(oldCred.AccessKeyID),
-			Status:      aws.String("Inactive"),
-			UserName:    aws.String(userName),
-		})
-		if err != nil {
-			if aerr, ok := err.(awserr.Error); ok {
-				switch aerr.Code() {
-				case iam.ErrCodeNoSuchEntityException:
-					fmt.Println(iam.ErrCodeNoSuchEntityException, aerr.Error())
-				case iam.ErrCodeLimitExceededException:
-					fmt.Println(iam.ErrCodeLimitExceededException, aerr.Error())
-				case iam.ErrCodeServiceFailureException:
-					fmt.Println(iam.ErrCodeServiceFailureException, aerr.Error())
-				default:
-					fmt.Println(aerr.Error())
-				}
-			} else {
-				// Print the error, cast err to awserr.Error to get the Code and
-				// Message from an error.
-				fmt.Println(err.Error())
+	// Delete old access key using new access key
+	_, err = newIamSvc.DeleteAccessKey(&iam.DeleteAccessKeyInput{
+		AccessKeyId: aws.String(oldCred.AccessKeyID),
+		UserName:    aws.String(userName),
+	})
+	if err != nil {
+		if aerr, ok := err.(awserr.Error); ok {
+			switch aerr.Code() {
+			case iam.ErrCodeNoSuchEntityException:
+				fmt.Println(iam.ErrCodeNoSuchEntityException, aerr.Error())
+			case iam.ErrCodeLimitExceededException:
+				fmt.Println(iam.ErrCodeLimitExceededException, aerr.Error())
+			case iam.ErrCodeServiceFailureException:
+				fmt.Println(iam.ErrCodeServiceFailureException, aerr.Error())
+			default:
+				fmt.Println(aerr.Error())
 			}
-			return
+		} else {
+			// Print the error, cast err to awserr.Error to get the Code and
+			// Message from an error.
+			fmt.Println(err.Error())
 		}
-
-		// Delete old access key using new access key
-		_, err = newIamSvc.DeleteAccessKey(&iam.DeleteAccessKeyInput{
-			AccessKeyId: aws.String(oldCred.AccessKeyID),
-			UserName:    aws.String(userName),
-		})
-		if err != nil {
-			if aerr, ok := err.(awserr.Error); ok {
-				switch aerr.Code() {
-				case iam.ErrCodeNoSuchEntityException:
-					fmt.Println(iam.ErrCodeNoSuchEntityException, aerr.Error())
-				case iam.ErrCodeLimitExceededException:
-					fmt.Println(iam.ErrCodeLimitExceededException, aerr.Error())
-				case iam.ErrCodeServiceFailureException:
-					fmt.Println(iam.ErrCodeServiceFailureException, aerr.Error())
-				default:
-					fmt.Println(aerr.Error())
-				}
-			} else {
-				// Print the error, cast err to awserr.Error to get the Code and
-				// Message from an error.
-				fmt.Println(err.Error())
-			}
-			return
-		}
-	},
+		return
+	}
 }
 
 func init() {

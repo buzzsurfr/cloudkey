@@ -33,13 +33,15 @@ var (
 		Use:   "version",
 		Short: "Version will output the current build information",
 		Long:  ``,
-		Run: func(cmd *cobra.Command, args []string) {
-			resp := goVersion.FuncWithOutput(shortened, mainVersion, mainCommit, mainDate, output)
-			fmt.Print(resp)
-			return
-		},
+		Run:   versionFunc,
 	}
 )
+
+func versionFunc(cmd *cobra.Command, args []string) {
+	resp := goVersion.FuncWithOutput(shortened, mainVersion, mainCommit, mainDate, output)
+	fmt.Print(resp)
+	return
+}
 
 func init() {
 	rootCmd.AddCommand(versionCmd)

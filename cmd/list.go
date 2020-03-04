@@ -25,52 +25,54 @@ and usage of using your command. For example:
 Cobra is a CLI library for Go that empowers applications.
 This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
-	Run: func(cmd *cobra.Command, args []string) {
-		// fmt.Println("list called")
-		var profiles aws.Profiles
+	Run: listFunc,
+}
 
-		// Check for and add environment variable credentials
-		envProfile, err := aws.FromEnviron()
-		if err == nil { // we found a profile in env
-			profiles.Profiles = append(profiles.Profiles, envProfile)
+func listFunc(cmd *cobra.Command, args []string) {
+	// fmt.Println("list called")
+	var profiles aws.Profiles
+
+	// Check for and add environment variable credentials
+	envProfile, err := aws.FromEnviron()
+	if err == nil { // we found a profile in env
+		profiles.Profiles = append(profiles.Profiles, envProfile)
+	}
+
+	// Parse ~/.aws/credentials file (INI format) for profiles and credentials
+	configProfiles, err := aws.FromConfigFile(err != nil)
+	if err == nil { // we found profile(s) in config file
+		for _, p := range configProfiles.Profiles {
+			profiles.Profiles = append(profiles.Profiles, p)
 		}
+	}
 
-		// Parse ~/.aws/credentials file (INI format) for profiles and credentials
-		configProfiles, err := aws.FromConfigFile(err != nil)
-		if err == nil { // we found profile(s) in config file
-			for _, p := range configProfiles.Profiles {
-				profiles.Profiles = append(profiles.Profiles, p)
-			}
-		}
+	renderTable(profiles.Profiles) // DEBUG
 
-		renderTable(profiles.Profiles) // DEBUG
-
-		// Get Current username if none provided
-		// sess := session.New()
-		// currentUserName, err := getSessionContext(sess)
-		// svc := iam.New(sess)
-		// result, err := svc.ListAccessKeys(&iam.ListAccessKeysInput{
-		// 	UserName: aws.String(currentUserName),
-		// })
-		// if err != nil {
-		// 	if aerr, ok := err.(awserr.Error); ok {
-		// 		switch aerr.Code() {
-		// 		case iam.ErrCodeNoSuchEntityException:
-		// 			fmt.Println(iam.ErrCodeNoSuchEntityException, aerr.Error())
-		// 		case iam.ErrCodeServiceFailureException:
-		// 			fmt.Println(iam.ErrCodeServiceFailureException, aerr.Error())
-		// 		default:
-		// 			fmt.Println(aerr.Error())
-		// 		}
-		// 	} else {
-		// 		// Print the error, cast err to awserr.Error to get the Code and
-		// 		// Message from an error.
-		// 		fmt.Println(err.Error())
-		// 	}
-		// 	return
-		// }
-		// fmt.Printf("%s\n", result)
-	},
+	// Get Current username if none provided
+	// sess := session.New()
+	// currentUserName, err := getSessionContext(sess)
+	// svc := iam.New(sess)
+	// result, err := svc.ListAccessKeys(&iam.ListAccessKeysInput{
+	// 	UserName: aws.String(currentUserName),
+	// })
+	// if err != nil {
+	// 	if aerr, ok := err.(awserr.Error); ok {
+	// 		switch aerr.Code() {
+	// 		case iam.ErrCodeNoSuchEntityException:
+	// 			fmt.Println(iam.ErrCodeNoSuchEntityException, aerr.Error())
+	// 		case iam.ErrCodeServiceFailureException:
+	// 			fmt.Println(iam.ErrCodeServiceFailureException, aerr.Error())
+	// 		default:
+	// 			fmt.Println(aerr.Error())
+	// 		}
+	// 	} else {
+	// 		// Print the error, cast err to awserr.Error to get the Code and
+	// 		// Message from an error.
+	// 		fmt.Println(err.Error())
+	// 	}
+	// 	return
+	// }
+	// fmt.Printf("%s\n", result)
 }
 
 func init() {
