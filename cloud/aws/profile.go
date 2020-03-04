@@ -112,11 +112,25 @@ func FromConfigFile(findDefault bool) (Profiles, error) {
 	}
 
 	// Parse AWS config file
+	profiles, err = parseConfigFile(awsConfigPath, findDefault)
+	if err != nil {
+		return Profiles{}, err
+	}
+
+	// Sort by profile name
+	sort.Slice(profiles.Profiles, func(i, j int) bool { return profiles.Profiles[i].Name < profiles.Profiles[j].Name })
+
+	return profiles, err
+}
+
+func parseConfigFile(path string, findDefault bool) (Profiles, error) {
+	var profiles Profiles
+
 	v := viper.New()
 	v.SetConfigName("credentials")
 	v.SetConfigType("ini")
-	v.AddConfigPath(awsConfigPath)
-	err = v.ReadInConfig()
+	v.AddConfigPath(path)
+	err := v.ReadInConfig()
 	if err != nil {
 		return profiles, err // Returning profiles since it's empty here
 	}
@@ -143,10 +157,7 @@ func FromConfigFile(findDefault bool) (Profiles, error) {
 		})
 	}
 
-	// Sort by profile name
-	sort.Slice(profiles.Profiles, func(i, j int) bool { return profiles.Profiles[i].Name < profiles.Profiles[j].Name })
-
-	return profiles, err
+	return profiles, nil
 }
 
 func getConfigPath() (string, error) {
