@@ -1,4 +1,4 @@
-# cloudkey
+# ☁️🔑 cloudkey
 Manage your cloud access keys
 
 [![Actions](https://github.com/buzzsurfr/cloudkey/workflows/Go/badge.svg)](https://github.com/buzzsurfr/cloudkey)
