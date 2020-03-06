@@ -41,7 +41,7 @@ func rotateFunc(cmd *cobra.Command, args []string) {
 	if err != nil {
 		panic(err)
 	}
-	fmt.Printf("Profile: %+v\n", p)
+	// fmt.Printf("Profile: %+v\n", p)
 
 	oldSess := p.Session()
 	oldCred := p.Cred
@@ -74,7 +74,7 @@ func rotateFunc(cmd *cobra.Command, args []string) {
 		}
 		return
 	}
-	fmt.Printf("ListAccessKeys: %+v\n", result)
+	// fmt.Printf("ListAccessKeys: %+v\n", result)
 	if len(result.AccessKeyMetadata) != 1 {
 		fmt.Println("Too many access keys")
 		return
@@ -103,7 +103,7 @@ func rotateFunc(cmd *cobra.Command, args []string) {
 		}
 		return
 	}
-	fmt.Printf("CreateAccessKey: %+v\n", newAccessKey)
+	// fmt.Printf("CreateAccessKey: %+v\n", newAccessKey)
 
 	// Create new credential from access key
 	cred, err := cloudAWS.FromAccessKey(*newAccessKey.AccessKey)
