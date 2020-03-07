@@ -6,7 +6,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"sort"
 	"strings"
 
 	"github.com/aws/aws-sdk-go/service/sts"
@@ -129,9 +128,6 @@ func FromConfigFile(findDefault bool) (Profiles, error) {
 	if err != nil {
 		return Profiles{}, err
 	}
-
-	// Sort by profile name
-	sort.Slice(profiles.Profiles, func(i, j int) bool { return profiles.Profiles[i].Name < profiles.Profiles[j].Name })
 
 	return profiles, err
 }

@@ -2,6 +2,7 @@ package cmd
 
 import (
 	"fmt"
+	"sort"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
@@ -39,17 +40,27 @@ func listFunc(cmd *cobra.Command, args []string) {
 	// Parse ~/.aws/credentials file (INI format) for profiles and credentials
 	configProfiles, err := cloudAWS.FromConfigFile(err != nil)
 	if err == nil { // we found profile(s) in config file
+		pChan := make(chan struct{})
 		for _, p := range configProfiles.Profiles {
-			if output == "wide" {
-				err := p.Lookup()
-				if err != nil {
-					// Warn that this profile couldn't be looked up, but continue
-					fmt.Println(err)
+			go func(profile cloudAWS.Profile) {
+				if output == "wide" {
+					err := profile.Lookup()
+					if err != nil {
+						// Warn that this profile couldn't be looked up, but continue
+						fmt.Println(err)
+					}
 				}
-			}
-			profiles.Profiles = append(profiles.Profiles, p)
+				profiles.Profiles = append(profiles.Profiles, profile)
+				pChan <- struct{}{}
+			}(p)
+		}
+		for _ = range configProfiles.Profiles {
+			<-pChan
 		}
 	}
+
+	// Sort by profile name
+	sort.Slice(profiles.Profiles, func(i, j int) bool { return profiles.Profiles[i].Name < profiles.Profiles[j].Name })
 
 	renderTable(profiles.Profiles) // DEBUG
 }
