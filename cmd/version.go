@@ -9,12 +9,7 @@ import (
 
 // versionCmd represents the version command
 var (
-	shortened   = false
-	mainVersion = "dev"
-	mainCommit  = "none"
-	mainDate    = "unknown"
-	output      = "json"
-	versionCmd  = &cobra.Command{
+	versionCmd = &cobra.Command{
 		Use:   "version",
 		Short: "Version will output the current build information",
 		Long:  ``,
