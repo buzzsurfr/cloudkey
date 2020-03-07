@@ -1,15 +1,13 @@
 package cmd
 
 import (
-	"errors"
 	"fmt"
-	"strings"
 
-	"github.com/aws/aws-sdk-go/aws/arn"
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/sts"
-	"github.com/buzzsurfr/cloudkey/cloud/aws"
+	cloudAWS "github.com/buzzsurfr/cloudkey/cloud/aws"
 	"github.com/mattn/go-colorable"
 	"github.com/olekukonko/tablewriter"
 	"github.com/spf13/cobra"
@@ -30,18 +28,25 @@ to quickly create a Cobra application.`,
 
 func listFunc(cmd *cobra.Command, args []string) {
 	// fmt.Println("list called")
-	var profiles aws.Profiles
+	var profiles cloudAWS.Profiles
 
 	// Check for and add environment variable credentials
-	envProfile, err := aws.FromEnviron()
+	envProfile, err := cloudAWS.FromEnviron()
 	if err == nil { // we found a profile in env
 		profiles.Profiles = append(profiles.Profiles, envProfile)
 	}
 
 	// Parse ~/.aws/credentials file (INI format) for profiles and credentials
-	configProfiles, err := aws.FromConfigFile(err != nil)
+	configProfiles, err := cloudAWS.FromConfigFile(err != nil)
 	if err == nil { // we found profile(s) in config file
 		for _, p := range configProfiles.Profiles {
+			if output == "wide" {
+				err := p.Lookup()
+				if err != nil {
+					// Warn that this profile couldn't be looked up, but continue
+					fmt.Println(err)
+				}
+			}
 			profiles.Profiles = append(profiles.Profiles, p)
 		}
 	}
@@ -96,24 +101,23 @@ func getSessionContext(sess *session.Session) (string, error) {
 	}
 
 	// Parse ARN
-	resultArn, err := arn.Parse(*result.Arn)
+	userName, err = UserName(aws.StringValue(result.Arn))
 	if err != nil {
 		return "", err
 	}
-
-	// Verify is a user
-	s := strings.Split(resultArn.Resource, "/")
-	if s[0] != "user" {
-		return "", errors.New("Not a user")
-	}
-	userName = s[1]
-
 	return userName, nil
 }
 
-func renderTable(profiles []aws.Profile) error {
+func renderTable(profiles []cloudAWS.Profile) error {
 	table := tablewriter.NewWriter(colorable.NewColorableStdout())
-	table.SetHeader([]string{"Cloud", "Name", "Access Key ID", "Source"})
+	headers := make([]string, 0)
+	switch output {
+	case "wide":
+		headers = []string{"Cloud", "Name", "Account", "UserName", "Access Key ID", "Source"}
+	default:
+		headers = []string{"Cloud", "Name", "Access Key ID", "Source"}
+	}
+	table.SetHeader(headers)
 	table.SetAutoWrapText(false)
 	table.SetAutoFormatHeaders(true)
 	table.SetHeaderAlignment(tablewriter.ALIGN_LEFT)
@@ -127,26 +131,60 @@ func renderTable(profiles []aws.Profile) error {
 	table.SetNoWhiteSpace(true)
 
 	for _, profile := range profiles {
-		fmt.Printf("Profile:\n%v\n", profile.String())
-		if profile.IsCurrent {
-			table.Rich([]string{
-				profile.Cloud,
-				profile.Name,
-				obfuscateString(profile.Cred.AccessKeyID, 4),
-				profile.Source,
-			}, []tablewriter.Colors{
-				tablewriter.Color(tablewriter.FgYellowColor),
-				tablewriter.Color(tablewriter.FgYellowColor),
-				tablewriter.Color(tablewriter.FgYellowColor),
-				tablewriter.Color(tablewriter.FgYellowColor),
-			})
-		} else {
-			table.Append([]string{
-				profile.Cloud,
-				profile.Name,
-				obfuscateString(profile.Cred.AccessKeyID, 4),
-				profile.Source,
-			})
+		switch output {
+		case "wide":
+			userName, _ := UserName(aws.StringValue(profile.Arn))
+			// Eventually we'll log errors to debug, but this isn't a big deal
+			// if err != nil {
+			// 	fmt.Println(err)
+			// }
+			if profile.IsCurrent {
+				table.Rich([]string{
+					profile.Cloud,
+					profile.Name,
+					aws.StringValue(profile.Account),
+					userName,
+					obfuscateString(profile.Cred.AccessKeyID, 4),
+					profile.Source,
+				}, []tablewriter.Colors{
+					tablewriter.Color(tablewriter.FgYellowColor),
+					tablewriter.Color(tablewriter.FgYellowColor),
+					tablewriter.Color(tablewriter.FgYellowColor),
+					tablewriter.Color(tablewriter.FgYellowColor),
+					tablewriter.Color(tablewriter.FgYellowColor),
+					tablewriter.Color(tablewriter.FgYellowColor),
+				})
+			} else {
+				table.Append([]string{
+					profile.Cloud,
+					profile.Name,
+					aws.StringValue(profile.Account),
+					userName,
+					obfuscateString(profile.Cred.AccessKeyID, 4),
+					profile.Source,
+				})
+			}
+		default:
+			if profile.IsCurrent {
+				table.Rich([]string{
+					profile.Cloud,
+					profile.Name,
+					obfuscateString(profile.Cred.AccessKeyID, 4),
+					profile.Source,
+				}, []tablewriter.Colors{
+					tablewriter.Color(tablewriter.FgYellowColor),
+					tablewriter.Color(tablewriter.FgYellowColor),
+					tablewriter.Color(tablewriter.FgYellowColor),
+					tablewriter.Color(tablewriter.FgYellowColor),
+				})
+			} else {
+				table.Append([]string{
+					profile.Cloud,
+					profile.Name,
+					obfuscateString(profile.Cred.AccessKeyID, 4),
+					profile.Source,
+				})
+			}
 		}
 	}
 	table.Render()
@@ -178,4 +216,6 @@ func init() {
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
 	// listCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	listCmd.Flags().StringVarP(&output, "output", "o", "table", "Output format. Only supports 'wide'.")
+
 }

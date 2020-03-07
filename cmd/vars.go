@@ -6,5 +6,5 @@ var (
 	mainVersion = "dev"
 	mainCommit  = "none"
 	mainDate    = "unknown"
-	output      = "json"
+	output      string
 )
