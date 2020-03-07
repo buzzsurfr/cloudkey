@@ -173,21 +173,6 @@ func rotateFunc(cmd *cobra.Command, args []string) {
 	}
 }
 
-func init() {
-	rootCmd.AddCommand(rotateCmd)
-
-	// Here you will define your flags and configuration settings.
-
-	// Cobra supports Persistent Flags which will work for this command
-	// and all subcommands, e.g.:
-	// rotateCmd.PersistentFlags().String("foo", "", "A help for foo")
-
-	// Cobra supports local flags which will only run when this command
-	// is called directly, e.g.:
-	// rotateCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
-	rotateCmd.Flags().StringVarP(&profileName, "profile", "p", "", "Profile to rotate")
-}
-
 // SessionUserName gets the user name of the current session
 func SessionUserName(sess *session.Session) (string, error) {
 	var userName string
@@ -223,4 +208,19 @@ func SessionUserName(sess *session.Session) (string, error) {
 	userName = s[1]
 
 	return userName, nil
+}
+
+func init() {
+	rootCmd.AddCommand(rotateCmd)
+
+	// Here you will define your flags and configuration settings.
+
+	// Cobra supports Persistent Flags which will work for this command
+	// and all subcommands, e.g.:
+	// rotateCmd.PersistentFlags().String("foo", "", "A help for foo")
+
+	// Cobra supports local flags which will only run when this command
+	// is called directly, e.g.:
+	// rotateCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	rotateCmd.Flags().StringVarP(&profileName, "profile", "p", "", "Profile to rotate")
 }
