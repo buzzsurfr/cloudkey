@@ -2,12 +2,18 @@ package aws
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"sort"
+	"strings"
+
+	"github.com/aws/aws-sdk-go/service/sts"
 
 	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/arn"
+	"github.com/aws/aws-sdk-go/aws/awserr"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"gopkg.in/ini.v1"
 
@@ -25,11 +31,17 @@ type Profile struct {
 	// config    Config
 	Source    string
 	IsCurrent bool
+	sts.GetCallerIdentityOutput
 }
 
 // Profiles is a collection of Profile
 type Profiles struct {
 	Profiles []Profile
+}
+
+// String formats the profile's attributes to a string
+func (p *Profile) String() string {
+	return fmt.Sprintf("Name: %s\nCloud: %s\nAccess Key: %s\nSource: %s\nAccount: %s\nArn: %s\n", p.Name, p.Cloud, p.Cred.AccessKeyID, p.Source, aws.StringValue(p.Account), aws.StringValue(p.Arn))
 }
 
 // Session creates an AWS session
@@ -190,6 +202,42 @@ func getCurrentProfile() string {
 
 	}
 	return currentProfile
+}
+
+// Lookup adds metadata from the cloud about the current proile
+func (p *Profile) Lookup() error {
+	// AWS sts:GetCallerIdentity API
+	svc := sts.New(p.Session())
+	result, err := svc.GetCallerIdentity(&sts.GetCallerIdentityInput{})
+	if err != nil {
+		if aerr, ok := err.(awserr.Error); ok {
+			switch aerr.Code() {
+			default:
+				fmt.Println(aerr.Error())
+			}
+		} else {
+			// Print the error, cast err to awserr.Error to get the Code and
+			// Message from an error.
+			fmt.Println(err.Error())
+		}
+		return err
+	}
+
+	// Parse ARN
+	resultArn, err := arn.Parse(*result.Arn)
+	if err != nil {
+		return err
+	}
+
+	// Verify is a user
+	s := strings.Split(resultArn.Resource, "/")
+	if s[0] != "user" {
+		return errors.New("Not a user")
+	}
+
+	p.GetCallerIdentityOutput = *result
+
+	return nil
 }
 
 // UpdateCredential locally updates the credential based on the profile type

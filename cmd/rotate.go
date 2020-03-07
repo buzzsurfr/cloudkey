@@ -41,7 +41,7 @@ func rotateFunc(cmd *cobra.Command, args []string) {
 	if err != nil {
 		panic(err)
 	}
-	// fmt.Printf("Profile: %+v\n", p)
+	// fmt.Printf("Profile: %s\n", p.String())
 
 	oldSess := p.Session()
 	oldCred := p.Cred

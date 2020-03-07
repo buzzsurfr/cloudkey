@@ -127,6 +127,7 @@ func renderTable(profiles []aws.Profile) error {
 	table.SetNoWhiteSpace(true)
 
 	for _, profile := range profiles {
+		fmt.Printf("Profile:\n%v\n", profile.String())
 		if profile.IsCurrent {
 			table.Rich([]string{
 				profile.Cloud,

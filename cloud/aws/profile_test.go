@@ -28,8 +28,28 @@ func TestParseConfigFile(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	t.Run("working config file", func(t *testing.T) {
+	t.Run("working config file and default", func(t *testing.T) {
+		got, err := parseConfigFile(tempConfigFile.Name(), true)
+		want := Profiles{
+			Profiles: []Profile{
+				Profile{
+					Name:  profileName,
+					Cloud: "aws",
+					Cred: Credential{
+						AccessKeyID:     accessKeyID,
+						SecretAccessKey: secretAccessKey,
+					},
+					Source:    "ConfigFile",
+					IsCurrent: true,
+				},
+			},
+		}
 
+		assertProfiles(t, got, want)
+		assertNoError(t, err)
+	})
+
+	t.Run("working config file and no default", func(t *testing.T) {
 		got, err := parseConfigFile(tempConfigFile.Name(), false)
 		want := Profiles{
 			Profiles: []Profile{
@@ -104,6 +124,12 @@ func TestGetCurrentProfile(t *testing.T) {
 	})
 }
 
+func TestLookup(t *testing.T) {
+	t.Run("", func(t *testing.T) {
+		// Mock sts.GetCallerIdentity
+	})
+}
+
 func assertString(t *testing.T, got, want string) {
 	t.Helper()
 	if got != want {
@@ -112,12 +138,14 @@ func assertString(t *testing.T, got, want string) {
 }
 
 func assertProfiles(t *testing.T, got, want Profiles) {
+	t.Helper()
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("got %+v want %+v", got, want)
 	}
 }
 
 func assertProfile(t *testing.T, got, want Profile) {
+	t.Helper()
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("got %+v want %+v", got, want)
 	}
