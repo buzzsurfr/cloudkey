@@ -38,7 +38,7 @@ Available Commands:
 Global Flags:
       --cloud string    Cloud Provider (default "aws")
       --config string   config file (default is $HOME/.cloudkey.yaml)
-      -h, --help            help for cloudkey
+      -h, --help        help for cloudkey
 
 Use "cloudkey [command] --help" for more information about a command.
 ```
