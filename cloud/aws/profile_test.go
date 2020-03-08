@@ -7,6 +7,9 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/aws/aws-sdk-go/aws"
+	"github.com/aws/aws-sdk-go/aws/credentials"
+	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/sts"
 	"github.com/mitchellh/go-homedir"
 )
@@ -29,6 +32,65 @@ func TestString(t *testing.T) {
 		want := "Name: default\nCloud: aws\nAccess Key: AKIAIOSFODNN7EXAMPLE\nSource: ConfigFile\nAccount: \nArn: \n"
 
 		assertString(t, got, want)
+	})
+}
+
+func TestSession(t *testing.T) {
+	profileName := "default"
+	t.Run("session with Environment Variables", func(t *testing.T) {
+		p := Profile{
+			Name:  profileName,
+			Cloud: "aws",
+			Cred: Credential{
+				AccessKeyID:     accessKeyID,
+				SecretAccessKey: secretAccessKey,
+			},
+			Source:                  "EnvironmentVariable",
+			IsCurrent:               true,
+			GetCallerIdentityOutput: sts.GetCallerIdentityOutput{},
+		}
+		got, err := p.Session()
+		want := session.Must(session.NewSession(&aws.Config{
+			Credentials: credentials.NewStaticCredentials(accessKeyID, secretAccessKey, ""),
+		}))
+
+		assertSession(t, got, want)
+		assertNoError(t, err)
+	})
+	t.Run("session with Config File", func(t *testing.T) {
+		p := Profile{
+			Name:  profileName,
+			Cloud: "aws",
+			Cred: Credential{
+				AccessKeyID:     accessKeyID,
+				SecretAccessKey: secretAccessKey,
+			},
+			Source:                  "ConfigFile",
+			IsCurrent:               true,
+			GetCallerIdentityOutput: sts.GetCallerIdentityOutput{},
+		}
+		got, err := p.Session()
+		want := session.Must(session.NewSession(&aws.Config{
+			Credentials: credentials.NewStaticCredentials(accessKeyID, secretAccessKey, ""),
+		}))
+
+		assertSession(t, got, want)
+		assertNoError(t, err)
+	})
+	t.Run("fail on unknown source", func(t *testing.T) {
+		p := Profile{
+			Name:                    profileName,
+			Cloud:                   "aws",
+			Cred:                    Credential{},
+			Source:                  "NotARealSource",
+			IsCurrent:               true,
+			GetCallerIdentityOutput: sts.GetCallerIdentityOutput{},
+		}
+		got, err := p.Session()
+		want := session.Must(session.NewSession())
+
+		assertSession(t, got, want)
+		assertError(t, err, ErrUnknownSource)
 	})
 }
 
@@ -180,6 +242,11 @@ func assertProfile(t *testing.T, got, want Profile) {
 	if got.Name == want.Name {
 		t.Errorf("got %+v want %+v", got, want)
 	}
+}
+
+func assertSession(t *testing.T, got, want *session.Session) {
+	t.Helper()
+	// No reliable way to compare sessions
 }
 
 func assertError(t *testing.T, got error, want error) {

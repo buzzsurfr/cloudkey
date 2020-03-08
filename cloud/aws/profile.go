@@ -44,20 +44,20 @@ func (p *Profile) String() string {
 }
 
 // Session creates an AWS session
-func (p *Profile) Session() *session.Session {
+func (p *Profile) Session() (*session.Session, error) {
 	switch p.Source {
 	case "EnvironmentVariable":
 		// fmt.Println("Source: EnvironmentVariable")
 		return session.Must(session.NewSession(&aws.Config{
 			Credentials: credentials.NewEnvCredentials(),
-		}))
+		})), nil
 	case "ConfigFile":
 		// fmt.Println("Source: ConfigFile")
 		return session.Must(session.NewSessionWithOptions(session.Options{
 			Profile: p.Name,
-		}))
+		})), nil
 	}
-	return session.Must(session.NewSession())
+	return &session.Session{}, ErrUnknownSource
 }
 
 // RotateKey creates a new key and deletes the old key (using the new key)
@@ -208,7 +208,11 @@ func getCurrentProfile() string {
 // Lookup adds metadata from the cloud about the current proile
 func (p *Profile) Lookup() error {
 	// AWS sts:GetCallerIdentity API
-	svc := sts.New(p.Session())
+	sess, err := p.Session()
+	if err != nil {
+		return err
+	}
+	svc := sts.New(sess)
 	result, err := svc.GetCallerIdentity(&sts.GetCallerIdentityInput{})
 	if err != nil {
 		if aerr, ok := err.(awserr.Error); ok {

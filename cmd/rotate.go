@@ -44,7 +44,10 @@ func rotateFunc(cmd *cobra.Command, args []string) {
 	}
 	// fmt.Printf("Profile: %s\n", p.String())
 
-	oldSess := p.Session()
+	oldSess, err := p.Session()
+	if err != nil {
+		panic(err)
+	}
 	oldCred := p.Cred
 
 	// List Access Keys
@@ -116,7 +119,10 @@ func rotateFunc(cmd *cobra.Command, args []string) {
 	p.UpdateCredential(cred)
 
 	// Create new AWS session
-	newSess := p.Session()
+	newSess, err := p.Session()
+	if err != nil {
+		panic(err)
+	}
 
 	// Sleep for 15 seconds to allow access key to activate
 	time.Sleep(15 * time.Second)
