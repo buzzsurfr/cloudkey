@@ -16,9 +16,6 @@ const (
 )
 
 func TestGetCredentialFromEnviron(t *testing.T) {
-	accessKeyID := "AKIAIOSFODNN7EXAMPLE"
-	secretAccessKey := "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
-
 	t.Run("no environment variables", func(t *testing.T) {
 		got, ok := getCredentialFromEnviron()
 		want := Credential{}
