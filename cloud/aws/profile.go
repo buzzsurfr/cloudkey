@@ -281,6 +281,7 @@ func (p *Profiles) WriteConfigAs(filename string) error {
 	// Marshal to INI file type
 	cfg := ini.Empty()
 	ini.PrettyFormat = false
+	ini.PrettyEqual = true
 	for _, profile := range p.Profiles {
 		if profile.Source != "ConfigFile" {
 			continue
@@ -292,14 +293,8 @@ func (p *Profiles) WriteConfigAs(filename string) error {
 		}
 	}
 
-	// Write to file
-	f, err := os.Create(filename)
-	if err != nil {
-		return err
-	}
-	defer f.Close()
-
-	_, err = cfg.WriteTo(f)
+	// Save to file
+	err := cfg.SaveTo(filename)
 	if err != nil {
 		return err
 	}

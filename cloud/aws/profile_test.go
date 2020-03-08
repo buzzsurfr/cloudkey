@@ -1,6 +1,7 @@
 package aws
 
 import (
+	"bytes"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -14,8 +15,32 @@ import (
 	"github.com/mitchellh/go-homedir"
 )
 
+var (
+	profileName = "default"
+	p           Profile
+	ps          Profiles
+)
+
+func init() {
+	p = Profile{
+		Name:  profileName,
+		Cloud: "aws",
+		Cred: Credential{
+			AccessKeyID:     accessKeyID,
+			SecretAccessKey: secretAccessKey,
+		},
+		Source:                  "EnvironmentVariable",
+		IsCurrent:               true,
+		GetCallerIdentityOutput: sts.GetCallerIdentityOutput{},
+	}
+	ps = Profiles{
+		Profiles: []Profile{
+			p,
+		},
+	}
+}
+
 func TestString(t *testing.T) {
-	profileName := "default"
 	t.Run("sample profile, output = table", func(t *testing.T) {
 		p := Profile{
 			Name:  profileName,
@@ -36,18 +61,6 @@ func TestString(t *testing.T) {
 }
 
 func TestSession(t *testing.T) {
-	profileName := "default"
-	p := Profile{
-		Name:  profileName,
-		Cloud: "aws",
-		Cred: Credential{
-			AccessKeyID:     accessKeyID,
-			SecretAccessKey: secretAccessKey,
-		},
-		Source:                  "EnvironmentVariable",
-		IsCurrent:               true,
-		GetCallerIdentityOutput: sts.GetCallerIdentityOutput{},
-	}
 	t.Run("session with Environment Variables", func(t *testing.T) {
 		p.Source = "EnvironmentVariable"
 		got, err := p.Session()
@@ -79,19 +92,6 @@ func TestSession(t *testing.T) {
 }
 
 func TestCurrent(t *testing.T) {
-	profileName := "default"
-	p := Profile{
-		Name:  profileName,
-		Cloud: "aws",
-		Cred: Credential{
-			AccessKeyID:     accessKeyID,
-			SecretAccessKey: secretAccessKey,
-		},
-		Source:                  "EnvironmentVariable",
-		IsCurrent:               true,
-		GetCallerIdentityOutput: sts.GetCallerIdentityOutput{},
-	}
-
 	t.Run("profile using Environment Variables", func(t *testing.T) {
 		os.Setenv("AWS_ACCESS_KEY_ID", accessKeyID)
 		os.Setenv("AWS_SECRET_ACCESS_KEY", secretAccessKey)
@@ -138,18 +138,6 @@ func TestCurrent(t *testing.T) {
 // }
 
 func TestFromEnviron(t *testing.T) {
-	profileName := "default"
-	p := Profile{
-		Name:  profileName,
-		Cloud: "aws",
-		Cred: Credential{
-			AccessKeyID:     accessKeyID,
-			SecretAccessKey: secretAccessKey,
-		},
-		Source:                  "EnvironmentVariable",
-		IsCurrent:               true,
-		GetCallerIdentityOutput: sts.GetCallerIdentityOutput{},
-	}
 	t.Run("profile using Environment Variables", func(t *testing.T) {
 		os.Setenv("AWS_ACCESS_KEY_ID", accessKeyID)
 		os.Setenv("AWS_SECRET_ACCESS_KEY", secretAccessKey)
@@ -183,7 +171,6 @@ func TestFromEnviron(t *testing.T) {
 }
 
 func TestParseConfigFile(t *testing.T) {
-	profileName := "default"
 	tempConfig := fmt.Sprintf("[%s]\naws_access_key_id = %s\naws_secret_access_key = %s\n", profileName, accessKeyID, secretAccessKey)
 	// Mock config file
 	tempConfigFile, err := ioutil.TempFile("", "awsconfig")
@@ -307,6 +294,43 @@ func TestLookup(t *testing.T) {
 	})
 }
 
+func TestWriteConfigAs(t *testing.T) {
+	tempConfig := fmt.Sprintf("[%s]\naws_access_key_id = %s\naws_secret_access_key = %s\n\n", profileName, accessKeyID, secretAccessKey)
+	// Mock config file
+	tempConfigFile, err := ioutil.TempFile("", "awsconfig")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer os.Remove(tempConfigFile.Name())
+
+	if _, err := tempConfigFile.Write([]byte(tempConfig)); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := tempConfigFile.Seek(0, 0); err != nil {
+		t.Fatal(err)
+	}
+	tempConfigFile.Close()
+
+	t.Run("proper format for credentials file", func(t *testing.T) {
+		ps.Profiles[0].Source = "ConfigFile"
+		emptyFile, err := ioutil.TempFile("", "awsconfigempty")
+		if err != nil {
+			t.Fatal(err)
+		}
+		defer os.Remove(emptyFile.Name())
+		if err = emptyFile.Close(); err != nil { // We don't need it open now, just created
+			t.Fatal(err)
+		}
+
+		fmt.Printf("%+v\n", ps)
+		err = ps.WriteConfigAs(emptyFile.Name())
+
+		assertFile(t, emptyFile.Name(), tempConfigFile.Name())
+		assertNoError(t, err)
+	})
+}
+
 func assertString(t *testing.T, got, want string) {
 	t.Helper()
 	if !reflect.DeepEqual(got, want) {
@@ -342,6 +366,20 @@ func assertProfileSource(t *testing.T, got, want Profile) {
 func assertSession(t *testing.T, got, want *session.Session) {
 	t.Helper()
 	// No reliable way to compare sessions
+}
+
+func assertFile(t *testing.T, got, want string) {
+	t.Helper()
+
+	gotBytes, gotErr := ioutil.ReadFile(got)
+	assertNoError(t, gotErr)
+
+	wantBytes, wantErr := ioutil.ReadFile(want)
+	assertNoError(t, wantErr)
+
+	if !bytes.Equal(gotBytes, wantBytes) {
+		t.Errorf("files not equal: got %s want %s", string(gotBytes), string(wantBytes))
+	}
 }
 
 func assertError(t *testing.T, got error, want error) {
