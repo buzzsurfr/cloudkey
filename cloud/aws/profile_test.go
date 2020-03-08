@@ -287,8 +287,7 @@ func assertProfileName(t *testing.T, got, want Profile) {
 func assertProfileSource(t *testing.T, got, want Profile) {
 	t.Helper()
 	// Can't use !reflect.DeepEqual since we embed sts.GetCallerIdentityOutput
-	// if !reflect.DeepEqual(got, want) {
-	if got.Source == want.Source {
+	if !reflect.DeepEqual(got, want) {
 		t.Errorf("got %+v want %+v", got.Source, want.Source)
 	}
 }
