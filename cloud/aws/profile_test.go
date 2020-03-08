@@ -323,7 +323,6 @@ func TestWriteConfigAs(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		fmt.Printf("%+v\n", ps)
 		err = ps.WriteConfigAs(emptyFile.Name())
 
 		assertFile(t, emptyFile.Name(), tempConfigFile.Name())
