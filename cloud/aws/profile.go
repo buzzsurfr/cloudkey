@@ -82,7 +82,7 @@ func Current() (Profile, error) {
 		}
 	}
 	// Didn't find profile in either environment variable or config file, return error
-	return Profile{}, errors.New("No credential found")
+	return Profile{}, ErrCredentialNotFound
 }
 
 // GetByName gets the profile by name
@@ -103,11 +103,12 @@ func GetByName(profileName string) (Profile, error) {
 func FromEnviron() (Profile, error) {
 	if c, ok := getCredentialFromEnviron(); ok {
 		return Profile{
-			Name:      "",
-			Cloud:     "aws",
-			Cred:      c,
-			Source:    "EnvironmentVariable",
-			IsCurrent: true,
+			Name:                    "",
+			Cloud:                   "aws",
+			Cred:                    c,
+			Source:                  "EnvironmentVariable",
+			IsCurrent:               true,
+			GetCallerIdentityOutput: sts.GetCallerIdentityOutput{},
 		}, nil
 	}
 	return Profile{}, errors.New("No credential found in environment variable")
@@ -123,8 +124,17 @@ func FromConfigFile(findDefault bool) (Profiles, error) {
 		// May change later since this assumes no credentials file found in ~/.aws
 	}
 
+	// Determine whether to highlight a current profile
+	var currentProfile string
+	switch findDefault {
+	case true:
+		currentProfile = getCurrentProfile()
+	case false:
+		currentProfile = ""
+	}
+
 	// Parse AWS config file
-	profiles, err = parseConfigFile(filepath.Join(awsConfigPath, "credentials"), findDefault)
+	profiles, err = parseConfigFile(filepath.Join(awsConfigPath, "credentials"), currentProfile)
 	if err != nil {
 		return Profiles{}, err
 	}
@@ -132,7 +142,7 @@ func FromConfigFile(findDefault bool) (Profiles, error) {
 	return profiles, err
 }
 
-func parseConfigFile(path string, findDefault bool) (Profiles, error) {
+func parseConfigFile(path string, defaultProfile string) (Profiles, error) {
 	var profiles Profiles
 
 	v := viper.New()
@@ -147,11 +157,6 @@ func parseConfigFile(path string, findDefault bool) (Profiles, error) {
 	allSettings := v.AllSettings()
 	// fmt.Printf("AllSettings: %+v\n", allSettings)
 
-	var currentProfile string
-	if findDefault {
-		currentProfile = getCurrentProfile()
-	}
-
 	for key, value := range allSettings {
 		// fmt.Printf("Key: %s\nValue: %+v\n\n", key, value) // DEBUG
 		var cred Credential
@@ -161,7 +166,7 @@ func parseConfigFile(path string, findDefault bool) (Profiles, error) {
 			Cloud:     "aws",
 			Cred:      cred,
 			Source:    "ConfigFile",
-			IsCurrent: findDefault && currentProfile == key,
+			IsCurrent: defaultProfile == key,
 		})
 	}
 

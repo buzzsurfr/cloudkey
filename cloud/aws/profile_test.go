@@ -7,8 +7,30 @@ import (
 	"reflect"
 	"testing"
 
+	"github.com/aws/aws-sdk-go/service/sts"
 	"github.com/mitchellh/go-homedir"
 )
+
+func TestString(t *testing.T) {
+	profileName := "default"
+	t.Run("sample profile, output = table", func(t *testing.T) {
+		p := Profile{
+			Name:  profileName,
+			Cloud: "aws",
+			Cred: Credential{
+				AccessKeyID:     accessKeyID,
+				SecretAccessKey: secretAccessKey,
+			},
+			Source:                  "ConfigFile",
+			IsCurrent:               false,
+			GetCallerIdentityOutput: sts.GetCallerIdentityOutput{},
+		}
+		got := p.String()
+		want := "Name: default\nCloud: aws\nAccess Key: AKIAIOSFODNN7EXAMPLE\nSource: ConfigFile\nAccount: \nArn: \n"
+
+		assertString(t, got, want)
+	})
+}
 
 func TestParseConfigFile(t *testing.T) {
 	profileName := "default"
@@ -28,8 +50,11 @@ func TestParseConfigFile(t *testing.T) {
 		t.Fatal(err)
 	}
 
+	os.Unsetenv("AWS_PROFILE")
+	os.Unsetenv("AWS_DEFAULT_PROFILE")
+
 	t.Run("working config file and default", func(t *testing.T) {
-		got, err := parseConfigFile(tempConfigFile.Name(), true)
+		got, err := parseConfigFile(tempConfigFile.Name(), profileName)
 		want := Profiles{
 			Profiles: []Profile{
 				Profile{
@@ -39,8 +64,9 @@ func TestParseConfigFile(t *testing.T) {
 						AccessKeyID:     accessKeyID,
 						SecretAccessKey: secretAccessKey,
 					},
-					Source:    "ConfigFile",
-					IsCurrent: true,
+					Source:                  "ConfigFile",
+					IsCurrent:               true,
+					GetCallerIdentityOutput: sts.GetCallerIdentityOutput{},
 				},
 			},
 		}
@@ -50,7 +76,7 @@ func TestParseConfigFile(t *testing.T) {
 	})
 
 	t.Run("working config file and no default", func(t *testing.T) {
-		got, err := parseConfigFile(tempConfigFile.Name(), false)
+		got, err := parseConfigFile(tempConfigFile.Name(), "")
 		want := Profiles{
 			Profiles: []Profile{
 				Profile{
@@ -60,8 +86,9 @@ func TestParseConfigFile(t *testing.T) {
 						AccessKeyID:     accessKeyID,
 						SecretAccessKey: secretAccessKey,
 					},
-					Source:    "ConfigFile",
-					IsCurrent: false,
+					Source:                  "ConfigFile",
+					IsCurrent:               false,
+					GetCallerIdentityOutput: sts.GetCallerIdentityOutput{},
 				},
 			},
 		}
@@ -132,13 +159,15 @@ func TestLookup(t *testing.T) {
 
 func assertString(t *testing.T, got, want string) {
 	t.Helper()
-	if got != want {
+	if !reflect.DeepEqual(got, want) {
 		t.Errorf("got %q but want %q", got, want)
 	}
 }
 
 func assertProfiles(t *testing.T, got, want Profiles) {
 	t.Helper()
+	// Can't use !reflect.DeepEqual since we embed sts.GetCallerIdentityOutput
+	// if got.Name != want.Name && got.
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("got %+v want %+v", got, want)
 	}
@@ -146,7 +175,9 @@ func assertProfiles(t *testing.T, got, want Profiles) {
 
 func assertProfile(t *testing.T, got, want Profile) {
 	t.Helper()
-	if !reflect.DeepEqual(got, want) {
+	// Can't use !reflect.DeepEqual since we embed sts.GetCallerIdentityOutput
+	// if !reflect.DeepEqual(got, want) {
+	if got.Name == want.Name {
 		t.Errorf("got %+v want %+v", got, want)
 	}
 }
