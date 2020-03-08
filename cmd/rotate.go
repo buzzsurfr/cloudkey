@@ -44,20 +44,19 @@ func rotateFunc(cmd *cobra.Command, args []string) {
 	}
 	// fmt.Printf("Profile: %s\n", p.String())
 
-	oldSess, err := p.Session()
+	err = p.NewSession()
 	if err != nil {
 		panic(err)
 	}
-	oldCred := p.Cred
 
 	// List Access Keys
-	userName, err := SessionUserName(oldSess)
+	userName, err := SessionUserName(p.Session)
 	if err != nil {
 		panic(err)
 	}
 
 	// Get Access Keys
-	oldIamSvc := iam.New(oldSess)
+	oldIamSvc := iam.New(p.Session)
 	result, err := oldIamSvc.ListAccessKeys(&iam.ListAccessKeysInput{
 		UserName: aws.String(userName),
 	})
@@ -115,11 +114,15 @@ func rotateFunc(cmd *cobra.Command, args []string) {
 		panic(err)
 	}
 
+	// Save old access key
+	// oldSess := p.Session
+	oldCred := p.Cred
+
 	// Save cred to profile
 	p.UpdateCredential(cred)
 
 	// Create new AWS session
-	newSess, err := p.Session()
+	err = p.NewSession()
 	if err != nil {
 		panic(err)
 	}
@@ -128,7 +131,7 @@ func rotateFunc(cmd *cobra.Command, args []string) {
 	time.Sleep(15 * time.Second)
 
 	// Deactivate old access key using new access key
-	newIamSvc := iam.New(newSess)
+	newIamSvc := iam.New(p.Session)
 	_, err = newIamSvc.UpdateAccessKey(&iam.UpdateAccessKeyInput{
 		AccessKeyId: aws.String(oldCred.AccessKeyID),
 		Status:      aws.String("Inactive"),
