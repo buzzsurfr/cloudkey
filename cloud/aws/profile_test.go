@@ -2,6 +2,7 @@ package aws
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
@@ -339,9 +340,17 @@ func TestLookup(t *testing.T) {
 		assertIdentity(t, &p.GetCallerIdentityOutput, user)
 		assertNoError(t, err)
 	})
+	t.Run("sts.GetCallerIdentity fails", func(t *testing.T) {
+		p.GetCallerIdentityOutput = sts.GetCallerIdentityOutput{}
+		p.STS = mockedSTS{Resp: *user, Err: errors.New(sts.ErrCodeInvalidIdentityTokenException)}
+		err := p.Lookup()
+
+		assertIdentity(t, &p.GetCallerIdentityOutput, blank)
+		assertError(t, err, errors.New(sts.ErrCodeInvalidIdentityTokenException))
+	})
 	t.Run("fail on assumed role", func(t *testing.T) {
 		p.GetCallerIdentityOutput = sts.GetCallerIdentityOutput{}
-		p.STS = mockedSTS{Resp: *assumedRole, Err: ErrUnsupportedIdentityType}
+		p.STS = mockedSTS{Resp: *assumedRole}
 		err := p.Lookup()
 
 		assertIdentity(t, &p.GetCallerIdentityOutput, blank)

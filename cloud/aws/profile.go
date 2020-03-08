@@ -230,7 +230,7 @@ func (p *Profile) Lookup() error {
 			// Message from an error.
 			return err
 		}
-		return err
+		// return err
 	}
 
 	// Parse ARN
