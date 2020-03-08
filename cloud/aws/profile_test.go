@@ -78,6 +78,62 @@ func TestSession(t *testing.T) {
 	})
 }
 
+func TestCurrent(t *testing.T) {
+	profileName := "default"
+	p := Profile{
+		Name:  profileName,
+		Cloud: "aws",
+		Cred: Credential{
+			AccessKeyID:     accessKeyID,
+			SecretAccessKey: secretAccessKey,
+		},
+		Source:                  "EnvironmentVariable",
+		IsCurrent:               true,
+		GetCallerIdentityOutput: sts.GetCallerIdentityOutput{},
+	}
+
+	t.Run("profile using Environment Variables", func(t *testing.T) {
+		os.Setenv("AWS_ACCESS_KEY_ID", accessKeyID)
+		os.Setenv("AWS_SECRET_ACCESS_KEY", secretAccessKey)
+		os.Unsetenv("AWS_SESSION_TOKEN")
+		p.Source = "EnvironmentVariable"
+		got, err := Current()
+
+		assertProfileName(t, got, p)
+		assertNoError(t, err)
+	})
+	t.Run("profile using Environment Variables which overrides Config File", func(t *testing.T) {
+		os.Setenv("AWS_ACCESS_KEY_ID", accessKeyID)
+		os.Setenv("AWS_SECRET_ACCESS_KEY", secretAccessKey)
+		os.Unsetenv("AWS_SESSION_TOKEN")
+		p.Source = "EnvironmentVariable"
+		got, err := Current()
+
+		assertProfileName(t, got, p)
+		assertProfileSource(t, got, p)
+		assertNoError(t, err)
+	})
+	// t.Run("session with Config File", func(t *testing.T) {
+	// 	os.Unsetenv("AWS_PROFILE")
+	// 	os.Unsetenv("AWS_DEFAULT_PROFILE")
+
+	// 	p.Source = "ConfigFile"
+	// 	got, err := Current()
+
+	// 	assertProfileName(t, got, p)
+	// 	assertProfileSource(t, got, p)
+	// 	assertNoError(t, err)
+	// })
+	// t.Run("fail on no environment variables or config file", func(t *testing.T) {
+	// 	os.Unsetenv("AWS_PROFILE")
+	// 	os.Unsetenv("AWS_DEFAULT_PROFILE")
+
+	// 	_, err := p.Session()
+
+	// 	assertError(t, err, ErrCredentialNotFound)
+	// })
+}
+
 func TestParseConfigFile(t *testing.T) {
 	profileName := "default"
 	tempConfig := fmt.Sprintf("[%s]\naws_access_key_id = %s\naws_secret_access_key = %s\n", profileName, accessKeyID, secretAccessKey)
@@ -219,12 +275,21 @@ func assertProfiles(t *testing.T, got, want Profiles) {
 	}
 }
 
-func assertProfile(t *testing.T, got, want Profile) {
+func assertProfileName(t *testing.T, got, want Profile) {
 	t.Helper()
 	// Can't use !reflect.DeepEqual since we embed sts.GetCallerIdentityOutput
 	// if !reflect.DeepEqual(got, want) {
 	if got.Name == want.Name {
 		t.Errorf("got %+v want %+v", got, want)
+	}
+}
+
+func assertProfileSource(t *testing.T, got, want Profile) {
+	t.Helper()
+	// Can't use !reflect.DeepEqual since we embed sts.GetCallerIdentityOutput
+	// if !reflect.DeepEqual(got, want) {
+	if got.Source == want.Source {
+		t.Errorf("got %+v want %+v", got.Source, want.Source)
 	}
 }
 
