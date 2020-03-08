@@ -111,7 +111,7 @@ func FromEnviron() (Profile, error) {
 			GetCallerIdentityOutput: sts.GetCallerIdentityOutput{},
 		}, nil
 	}
-	return Profile{}, errors.New("No credential found in environment variable")
+	return Profile{}, ErrCredentialNotFound
 }
 
 // FromConfigFile gets a list of profiles from the configuration file (default path/file is ~/.aws/credentials)

@@ -134,6 +134,54 @@ func TestCurrent(t *testing.T) {
 	// })
 }
 
+// func TestGetByName(t *testing.T) {
+// }
+
+func TestFromEnviron(t *testing.T) {
+	profileName := "default"
+	p := Profile{
+		Name:  profileName,
+		Cloud: "aws",
+		Cred: Credential{
+			AccessKeyID:     accessKeyID,
+			SecretAccessKey: secretAccessKey,
+		},
+		Source:                  "EnvironmentVariable",
+		IsCurrent:               true,
+		GetCallerIdentityOutput: sts.GetCallerIdentityOutput{},
+	}
+	t.Run("profile using Environment Variables", func(t *testing.T) {
+		os.Setenv("AWS_ACCESS_KEY_ID", accessKeyID)
+		os.Setenv("AWS_SECRET_ACCESS_KEY", secretAccessKey)
+		os.Unsetenv("AWS_SESSION_TOKEN")
+
+		got, err := FromEnviron()
+
+		assertProfileName(t, got, p)
+		assertNoError(t, err)
+	})
+	t.Run("fail on no environment credentials", func(t *testing.T) {
+		os.Unsetenv("AWS_ACCESS_KEY_ID")
+		os.Unsetenv("AWS_SECRET_ACCESS_KEY")
+		os.Unsetenv("AWS_SESSION_TOKEN")
+
+		got, err := FromEnviron()
+
+		assertProfileName(t, got, p)
+		assertError(t, err, ErrCredentialNotFound)
+	})
+	t.Run("fail if session token set", func(t *testing.T) {
+		os.Setenv("AWS_ACCESS_KEY_ID", accessKeyID)
+		os.Setenv("AWS_SECRET_ACCESS_KEY", secretAccessKey)
+		os.Setenv("AWS_SESSION_TOKEN", "TestToken")
+
+		got, err := FromEnviron()
+
+		assertProfileName(t, got, p)
+		assertError(t, err, ErrCredentialNotFound)
+	})
+}
+
 func TestParseConfigFile(t *testing.T) {
 	profileName := "default"
 	tempConfig := fmt.Sprintf("[%s]\naws_access_key_id = %s\naws_secret_access_key = %s\n", profileName, accessKeyID, secretAccessKey)
