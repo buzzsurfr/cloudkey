@@ -20,12 +20,13 @@ import (
 var rotateCmd = &cobra.Command{
 	Use:   "rotate",
 	Short: "Rotate the cloud access key",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
+	Long: `Rotate uses the "active" access key (or the access key found with the --profile
+option) to request a new access key, applies the access key locally, then uses
+the new access key to remove the old access key.
 
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+Rotate will replace the access key in the same destination as the source, so
+environment variables are replaced or the config file (credentials file) is
+modified.`,
 	Run: rotateFunc,
 }
 

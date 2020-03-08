@@ -18,12 +18,15 @@ import (
 var listCmd = &cobra.Command{
 	Use:   "list",
 	Short: "Lists all cloud access keys",
-	Long: `A longer description that spans multiple lines and likely contains examples
-and usage of using your command. For example:
+	Long: `List pulls the credentials from environment variables and the credentials file
+and outputs them into a table. The "active" profile (which will be rotated by
+default or used with AWS CLI commands) will be in yellow text.
 
-Cobra is a CLI library for Go that empowers applications.
-This application is a tool to generate the needed files
-to quickly create a Cobra application.`,
+Example Output:
+CLOUD   NAME      ACCESS KEY ID          SOURCE
+aws               AKIA************MPLE   EnvironmentVariable
+aws     default   AKIA************G7UP   ConfigFile
+`,
 	Run: listFunc,
 }
 

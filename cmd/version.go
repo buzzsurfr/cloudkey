@@ -12,7 +12,7 @@ var (
 	versionCmd = &cobra.Command{
 		Use:   "version",
 		Short: "Version will output the current build information",
-		Long:  ``,
+		Long:  `Version specifies the version, commit, and commit date in either JSON or YAML format.`,
 		Run:   versionFunc,
 	}
 )
