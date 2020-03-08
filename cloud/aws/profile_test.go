@@ -37,18 +37,19 @@ func TestString(t *testing.T) {
 
 func TestSession(t *testing.T) {
 	profileName := "default"
+	p := Profile{
+		Name:  profileName,
+		Cloud: "aws",
+		Cred: Credential{
+			AccessKeyID:     accessKeyID,
+			SecretAccessKey: secretAccessKey,
+		},
+		Source:                  "EnvironmentVariable",
+		IsCurrent:               true,
+		GetCallerIdentityOutput: sts.GetCallerIdentityOutput{},
+	}
 	t.Run("session with Environment Variables", func(t *testing.T) {
-		p := Profile{
-			Name:  profileName,
-			Cloud: "aws",
-			Cred: Credential{
-				AccessKeyID:     accessKeyID,
-				SecretAccessKey: secretAccessKey,
-			},
-			Source:                  "EnvironmentVariable",
-			IsCurrent:               true,
-			GetCallerIdentityOutput: sts.GetCallerIdentityOutput{},
-		}
+		p.Source = "EnvironmentVariable"
 		got, err := p.Session()
 		want := session.Must(session.NewSession(&aws.Config{
 			Credentials: credentials.NewStaticCredentials(accessKeyID, secretAccessKey, ""),
@@ -58,17 +59,7 @@ func TestSession(t *testing.T) {
 		assertNoError(t, err)
 	})
 	t.Run("session with Config File", func(t *testing.T) {
-		p := Profile{
-			Name:  profileName,
-			Cloud: "aws",
-			Cred: Credential{
-				AccessKeyID:     accessKeyID,
-				SecretAccessKey: secretAccessKey,
-			},
-			Source:                  "ConfigFile",
-			IsCurrent:               true,
-			GetCallerIdentityOutput: sts.GetCallerIdentityOutput{},
-		}
+		p.Source = "ConfigFile"
 		got, err := p.Session()
 		want := session.Must(session.NewSession(&aws.Config{
 			Credentials: credentials.NewStaticCredentials(accessKeyID, secretAccessKey, ""),
@@ -78,14 +69,7 @@ func TestSession(t *testing.T) {
 		assertNoError(t, err)
 	})
 	t.Run("fail on unknown source", func(t *testing.T) {
-		p := Profile{
-			Name:                    profileName,
-			Cloud:                   "aws",
-			Cred:                    Credential{},
-			Source:                  "NotARealSource",
-			IsCurrent:               true,
-			GetCallerIdentityOutput: sts.GetCallerIdentityOutput{},
-		}
+		p.Source = "UnknownSource"
 		got, err := p.Session()
 		want := session.Must(session.NewSession())
 
