@@ -61,10 +61,10 @@ func (p *Profile) Session() (*session.Session, error) {
 }
 
 // RotateKey creates a new key and deletes the old key (using the new key)
-func (p *Profile) RotateKey() (bool, error) {
-	// TODO
-	return false, nil
-}
+// func (p *Profile) RotateKey() (bool, error) {
+// 	// TODO
+// 	return false, nil
+// }
 
 // Current gets the current profile
 func Current() (Profile, error) {
