@@ -11,6 +11,9 @@ Manage your cloud access keys
 * [Install](#install)
 * [Overview](#overview)
 * [Commands](#commands)
+  * [`list`](#list)
+  * [`rotate`](#rotate)
+  * [`version`](#version)
 
 ## Install
 
