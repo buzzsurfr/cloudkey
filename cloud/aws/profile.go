@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/aws/aws-sdk-go/service/sts"
+	"github.com/aws/aws-sdk-go/service/sts/stsiface"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/arn"
@@ -31,6 +32,8 @@ type Profile struct {
 	Source    string
 	IsCurrent bool
 	sts.GetCallerIdentityOutput
+	Session *session.Session
+	STS     stsiface.STSAPI
 }
 
 // Profiles is a collection of Profile
@@ -43,21 +46,28 @@ func (p *Profile) String() string {
 	return fmt.Sprintf("Name: %s\nCloud: %s\nAccess Key: %s\nSource: %s\nAccount: %s\nArn: %s\n", p.Name, p.Cloud, p.Cred.AccessKeyID, p.Source, aws.StringValue(p.Account), aws.StringValue(p.Arn))
 }
 
-// Session creates an AWS session
-func (p *Profile) Session() (*session.Session, error) {
+// NewSession creates an AWS session
+func (p *Profile) NewSession() error {
 	switch p.Source {
 	case "EnvironmentVariable":
 		// fmt.Println("Source: EnvironmentVariable")
-		return session.Must(session.NewSession(&aws.Config{
+		p.Session = session.Must(session.NewSession(&aws.Config{
 			Credentials: credentials.NewEnvCredentials(),
-		})), nil
+		}))
+		return nil
 	case "ConfigFile":
 		// fmt.Println("Source: ConfigFile")
-		return session.Must(session.NewSessionWithOptions(session.Options{
+		p.Session = session.Must(session.NewSessionWithOptions(session.Options{
 			Profile: p.Name,
-		})), nil
+		}))
+		return nil
 	}
-	return &session.Session{}, ErrUnknownSource
+	return ErrUnknownSource
+}
+
+// NewSTS creates a new STS client from the current session
+func (p *Profile) NewSTS() {
+	p.STS = sts.New(p.Session)
 }
 
 // RotateKey creates a new key and deletes the old key (using the new key)
@@ -208,22 +218,17 @@ func getCurrentProfile() string {
 // Lookup adds metadata from the cloud about the current proile
 func (p *Profile) Lookup() error {
 	// AWS sts:GetCallerIdentity API
-	sess, err := p.Session()
-	if err != nil {
-		return err
-	}
-	svc := sts.New(sess)
-	result, err := svc.GetCallerIdentity(&sts.GetCallerIdentityInput{})
+	result, err := p.STS.GetCallerIdentity(&sts.GetCallerIdentityInput{})
 	if err != nil {
 		if aerr, ok := err.(awserr.Error); ok {
 			switch aerr.Code() {
 			default:
-				fmt.Println(aerr.Error())
+				return aerr
 			}
 		} else {
 			// Print the error, cast err to awserr.Error to get the Code and
 			// Message from an error.
-			fmt.Println(err.Error())
+			return err
 		}
 		return err
 	}
@@ -237,7 +242,7 @@ func (p *Profile) Lookup() error {
 	// Verify is a user
 	s := strings.Split(resultArn.Resource, "/")
 	if s[0] != "user" {
-		return errors.New("Not a user")
+		return ErrUnsupportedIdentityType
 	}
 
 	p.GetCallerIdentityOutput = *result

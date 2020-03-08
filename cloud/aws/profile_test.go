@@ -12,14 +12,26 @@ import (
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/sts"
+	"github.com/aws/aws-sdk-go/service/sts/stsiface"
 	"github.com/mitchellh/go-homedir"
 )
 
 var (
 	profileName = "default"
+	accountID   = "123456789012"
 	p           Profile
 	ps          Profiles
 )
+
+type mockedSTS struct {
+	stsiface.STSAPI
+	Resp sts.GetCallerIdentityOutput
+	Err  error
+}
+
+func (m mockedSTS) GetCallerIdentity(*sts.GetCallerIdentityInput) (*sts.GetCallerIdentityOutput, error) {
+	return &m.Resp, m.Err
+}
 
 func init() {
 	p = Profile{
@@ -29,9 +41,13 @@ func init() {
 			AccessKeyID:     accessKeyID,
 			SecretAccessKey: secretAccessKey,
 		},
-		Source:                  "EnvironmentVariable",
-		IsCurrent:               true,
-		GetCallerIdentityOutput: sts.GetCallerIdentityOutput{},
+		Source:    "EnvironmentVariable",
+		IsCurrent: true,
+		GetCallerIdentityOutput: sts.GetCallerIdentityOutput{
+			Account: aws.String(accountID),
+			Arn:     aws.String("arn:aws:iam::123456789012:user/defaultUser"),
+			UserId:  aws.String(accessKeyID),
+		},
 	}
 	ps = Profiles{
 		Profiles: []Profile{
@@ -60,34 +76,49 @@ func TestString(t *testing.T) {
 	})
 }
 
-func TestSession(t *testing.T) {
+func TestNewSession(t *testing.T) {
 	t.Run("session with Environment Variables", func(t *testing.T) {
 		p.Source = "EnvironmentVariable"
-		got, err := p.Session()
+		err := p.NewSession()
 		want := session.Must(session.NewSession(&aws.Config{
 			Credentials: credentials.NewStaticCredentials(accessKeyID, secretAccessKey, ""),
 		}))
 
-		assertSession(t, got, want)
+		assertSession(t, p.Session, want)
 		assertNoError(t, err)
 	})
 	t.Run("session with Config File", func(t *testing.T) {
 		p.Source = "ConfigFile"
-		got, err := p.Session()
+		err := p.NewSession()
 		want := session.Must(session.NewSession(&aws.Config{
 			Credentials: credentials.NewStaticCredentials(accessKeyID, secretAccessKey, ""),
 		}))
 
-		assertSession(t, got, want)
+		assertSession(t, p.Session, want)
 		assertNoError(t, err)
 	})
 	t.Run("fail on unknown source", func(t *testing.T) {
 		p.Source = "UnknownSource"
-		got, err := p.Session()
+		err := p.NewSession()
 		want := session.Must(session.NewSession())
 
-		assertSession(t, got, want)
+		assertSession(t, p.Session, want)
 		assertError(t, err, ErrUnknownSource)
+	})
+}
+
+func TestNewSTS(t *testing.T) {
+	p.Source = "EnvironmentVariable"
+	err := p.NewSession()
+	if err != nil {
+		t.Fatal("Could not setup session to create client")
+	}
+	t.Run("session with Environment Variables", func(t *testing.T) {
+		p.NewSTS()
+
+		if _, ok := p.STS.(stsiface.STSAPI); !ok {
+			t.Errorf("client is not a STS client")
+		}
 	})
 }
 
@@ -289,8 +320,32 @@ func TestGetCurrentProfile(t *testing.T) {
 }
 
 func TestLookup(t *testing.T) {
-	t.Run("", func(t *testing.T) {
-		// Mock sts.GetCallerIdentity
+	user := &sts.GetCallerIdentityOutput{
+		Account: aws.String(accountID),
+		Arn:     aws.String("arn:aws:iam::123456789012:user/defaultUser"),
+		UserId:  aws.String(accessKeyID),
+	}
+	assumedRole := &sts.GetCallerIdentityOutput{
+		Account: aws.String("123456789012"),
+		Arn:     aws.String("arn:aws:sts::123456789012:assumed-role/default-role/session"),
+		UserId:  aws.String("AROAIOSFODNN7EXAMPLE:session"),
+	}
+	blank := &sts.GetCallerIdentityOutput{}
+
+	t.Run("successful lookup", func(t *testing.T) {
+		p.STS = mockedSTS{Resp: *user}
+		err := p.Lookup()
+
+		assertIdentity(t, &p.GetCallerIdentityOutput, user)
+		assertNoError(t, err)
+	})
+	t.Run("fail on assumed role", func(t *testing.T) {
+		p.GetCallerIdentityOutput = sts.GetCallerIdentityOutput{}
+		p.STS = mockedSTS{Resp: *assumedRole, Err: ErrUnsupportedIdentityType}
+		err := p.Lookup()
+
+		assertIdentity(t, &p.GetCallerIdentityOutput, blank)
+		assertError(t, err, ErrUnsupportedIdentityType)
 	})
 }
 
@@ -365,6 +420,13 @@ func assertProfileSource(t *testing.T, got, want Profile) {
 func assertSession(t *testing.T, got, want *session.Session) {
 	t.Helper()
 	// No reliable way to compare sessions
+}
+
+func assertIdentity(t *testing.T, got, want *sts.GetCallerIdentityOutput) {
+	t.Helper()
+	if !reflect.DeepEqual(&got, &want) {
+		t.Errorf("got %q want %q", got, want)
+	}
 }
 
 func assertFile(t *testing.T, got, want string) {
