@@ -8,6 +8,9 @@ import (
 	"path/filepath"
 	"strings"
 
+	"github.com/aws/aws-sdk-go/service/iam"
+	"github.com/aws/aws-sdk-go/service/iam/iamiface"
+
 	"github.com/aws/aws-sdk-go/service/sts"
 	"github.com/aws/aws-sdk-go/service/sts/stsiface"
 
@@ -34,6 +37,7 @@ type Profile struct {
 	sts.GetCallerIdentityOutput
 	Session *session.Session
 	STS     stsiface.STSAPI
+	IAM     iamiface.IAMAPI
 }
 
 // Profiles is a collection of Profile
@@ -68,6 +72,11 @@ func (p *Profile) NewSession() error {
 // NewSTS creates a new STS client from the current session
 func (p *Profile) NewSTS() {
 	p.STS = sts.New(p.Session)
+}
+
+// NewIAM creates a new IAM client from the current session
+func (p *Profile) NewIAM() {
+	p.IAM = iam.New(p.Session)
 }
 
 // RotateKey creates a new key and deletes the old key (using the new key)

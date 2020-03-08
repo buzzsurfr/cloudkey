@@ -12,6 +12,7 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/iam/iamiface"
 	"github.com/aws/aws-sdk-go/service/sts"
 	"github.com/aws/aws-sdk-go/service/sts/stsiface"
 	"github.com/mitchellh/go-homedir"
@@ -119,6 +120,21 @@ func TestNewSTS(t *testing.T) {
 
 		if _, ok := p.STS.(stsiface.STSAPI); !ok {
 			t.Errorf("client is not a STS client")
+		}
+	})
+}
+
+func TestNewIAM(t *testing.T) {
+	p.Source = "EnvironmentVariable"
+	err := p.NewSession()
+	if err != nil {
+		t.Fatal("Could not setup session to create client")
+	}
+	t.Run("session with Environment Variables", func(t *testing.T) {
+		p.NewIAM()
+
+		if _, ok := p.IAM.(iamiface.IAMAPI); !ok {
+			t.Errorf("client is not a IAM client")
 		}
 	})
 }
