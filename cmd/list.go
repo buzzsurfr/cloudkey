@@ -43,7 +43,7 @@ func listFunc(cmd *cobra.Command, args []string) {
 	// Parse ~/.aws/credentials file (INI format) for profiles and credentials
 	configProfiles, err := cloudAWS.FromConfigFile(err != nil)
 	if err == nil { // we found profile(s) in config file
-		pChan := make(chan struct{})
+		pChan := make(chan cloudAWS.Profile)
 		for _, p := range configProfiles.Profiles {
 			go func(profile cloudAWS.Profile) {
 				if output == "wide" {
@@ -55,12 +55,11 @@ func listFunc(cmd *cobra.Command, args []string) {
 						fmt.Println(err)
 					}
 				}
-				profiles.Profiles = append(profiles.Profiles, profile)
-				pChan <- struct{}{}
+				pChan <- profile
 			}(p)
 		}
 		for _ = range configProfiles.Profiles {
-			<-pChan
+			profiles.Profiles = append(profiles.Profiles, <-pChan)
 		}
 	}
 
