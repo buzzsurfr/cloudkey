@@ -47,6 +47,8 @@ func listFunc(cmd *cobra.Command, args []string) {
 		for _, p := range configProfiles.Profiles {
 			go func(profile cloudAWS.Profile) {
 				if output == "wide" {
+					profile.NewSession()
+					profile.NewSTS()
 					err := profile.Lookup()
 					if err != nil {
 						// Warn that this profile couldn't be looked up, but continue
